@@ -1,11 +1,21 @@
 import * as vscode from 'vscode';
 
+import { CosmosCmdTlmDB } from './cmdTlmDB';
+
 export class PythonCompletionProvider implements vscode.CompletionItemProvider {
+    private cmdTlmDB: CosmosCmdTlmDB;
+
+    constructor(cmdTlmDB: CosmosCmdTlmDB) {
+        this.cmdTlmDB = cmdTlmDB;
+    }
+
     public provideCompletionItems(
         document: vscode.TextDocument,
         position: vscode.Position
     ): vscode.ProviderResult<vscode.CompletionItem[]> {
-        const range = document.getWordRangeAtPosition(position.with(position.line, position.character - 1));
+        const range = document.getWordRangeAtPosition(
+            position.with(position.line, position.character - 1)
+        );
         if (!range) {
             return undefined;
         }

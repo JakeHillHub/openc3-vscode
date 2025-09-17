@@ -15,6 +15,7 @@ export class CosmosApiCompletionProvider implements vscode.CompletionItemProvide
             '(target, packet)',
             'Get the current telemetry values of a specfied packet'
         );
+        // TODO: Add the rest
         return [cmdItem, tlmItem];
     }
 

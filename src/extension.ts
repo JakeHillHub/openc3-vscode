@@ -3,13 +3,25 @@
 import * as vscode from 'vscode';
 import { PythonCompletionProvider } from './pythonCompletion';
 import { CosmosApiCompletionProvider } from './cosmosApiSuggestions';
+import { CosmosCmdTlmDB } from './cmdTlmDB';
+
+const outputChannel = vscode.window.createOutputChannel('OpenC3 Scripting');
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+    const cmdTlmDB = new CosmosCmdTlmDB(outputChannel);
+    cmdTlmDB.compileWorkspace();
+
+    const onDidSave = vscode.workspace.onDidSaveTextDocument((document: vscode.TextDocument) => {
+        if (document.fileName.endsWith('cmd.txt') || document.fileName.endsWith('tlm.txt')) {
+            cmdTlmDB.compileFile(document);
+        }
+    });
+
     const pythonProvider = vscode.languages.registerCompletionItemProvider(
         ['python'],
-        new PythonCompletionProvider(),
+        new PythonCompletionProvider(cmdTlmDB),
         '(' // This is the trigger character that activates the provider
     );
 
@@ -18,8 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
         new CosmosApiCompletionProvider()
     );
 
-    context.subscriptions.push(pythonProvider);
-    context.subscriptions.push(cosmosApiProvider);
+    context.subscriptions.push(pythonProvider, cosmosApiProvider, onDidSave);
 }
 
 // This method is called when your extension is deactivated
