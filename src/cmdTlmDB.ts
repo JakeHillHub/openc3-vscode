@@ -4,6 +4,16 @@ import * as fs from 'fs';
 
 const COMMAND_KEYWD = 'COMMAND';
 
+enum CmdParamType {
+    INT,
+    UINT,
+    FLOAT,
+    DERIVED,
+    STRING,
+    BLOCK,
+    ARRAY,
+}
+
 enum Endianness {
     BIG,
     LITTLE,
@@ -30,15 +40,28 @@ interface CmdDeclaration {
     target: string;
     name: string;
     endianness: Endianness;
-    description: string;
+    description: string | undefined;
 }
 
 interface CmdParameter {
     name: string;
 }
 
-const cmdDeclarationRegex = /^COMMAND\s+(\S+)\s+(\S+)\s+(BIG_ENDIAN|LITTLE_ENDIAN)\s+"(.+)"$/;
 const inlineIrbRegex = /<%.*?%>/g;
+
+/* We completely ignore bit offsets/bit sizes since they are irrelevant for command suggestions.
+   Syntax errors with bit sizes/offsets are therfore not detectable by this module.
+   Will be implemented in the cmd/tlm syntax highlighting portion instead. */
+const cmdDeclarationRegex =
+    /^COMMAND\s+(\S+)\s+(\S+)\s+(BIG_ENDIAN|LITTLE_ENDIAN)(?:(?:\s+"(.+)"))?$/;
+const cmdParamRegex =
+    /^((?:APPEND_)?(PARAMETER|ID_PARAMETER))\s+(\S+).*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)\s+(.*)$/;
+const cmdIntValRegex =
+    /^((?:(?:MIN_|MAX_)(UINT|INT|FLOAT)(128|64|32|16|8))|\d+)\s+((?:(?:MIN_|MAX_)(UINT|INT|FLOAT)(128|64|32|16|8))|\d+)\s+((?:(?:MIN_|MAX_)(UINT|INT|FLOAT)(128|64|32|16|8))|\d+)(?:\s+"(.*?)")(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
+const cmdStringValRegex = /^"(.*)"\s+.*"(.*)"$/;
+
+const cmdParamArrayRegex =
+    /^((?:APPEND_)(ARRAY_PARAMETER))\s+(\S+)\s+.*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 
 function sanitizeLine(line: string): string {
     // Trim excess whitespace and sanitize irb if present
@@ -54,7 +77,7 @@ class ParserError extends Error {
     }
 }
 
-class CmdFileParser {
+export class CmdFileParser {
     private path: string;
     private parserState: CmdParserState;
     private commands: CmdDefinition[];
@@ -107,6 +130,14 @@ class CmdFileParser {
         };
     }
 
+    private searchParamDecl(line: string): CmdParameter | undefined {
+        return undefined;
+    }
+
+    private storeBufferedCmdDef() {
+        // TODO: Append the existing command declaration + parameters to the overall list of command definitions
+    }
+
     private parseLine(line: string) {
         switch (this.parserState) {
             case CmdParserState.CMD_DECL:
@@ -121,7 +152,10 @@ class CmdFileParser {
                 this.parserState = CmdParserState.CMD_BODY_PARAM;
                 break;
             case CmdParserState.CMD_BODY_PARAM:
-                const
+                if (line.startsWith(COMMAND_KEYWD)) {
+                    this.storeBufferedCmdDef();
+                }
+                const param = this.searchParamDecl(line);
                 break;
             default:
                 console.log('default');
@@ -135,6 +169,9 @@ class CmdFileParser {
         for (const line of lines) {
             this.lineNumber++;
             const sanitized = sanitizeLine(line);
+            if (sanitized === '' || sanitized.startsWith('#')) {
+                continue; /* Ignore empty lines + comments */
+            }
 
             try {
                 this.parseLine(sanitized);
@@ -147,6 +184,8 @@ class CmdFileParser {
                 throw err;
             }
         }
+
+        this.storeBufferedCmdDef();
     }
 }
 
