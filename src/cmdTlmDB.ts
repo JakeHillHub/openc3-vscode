@@ -162,9 +162,10 @@ export class CmdFileParser {
     const fileContent = fs.readFileSync(this.path, 'utf-8');
     this.outputChannel.appendLine('new parse');
 
+    let erbResult = undefined;
     try {
       this.outputChannel.appendLine(`cwd : ${process.cwd()}`);
-      const result = await erb({
+      erbResult = await erb({
         template: fileContent,
         data: {
           values: {
@@ -174,15 +175,14 @@ export class CmdFileParser {
         },
         timeout: 5000,
       });
-      this.outputChannel.appendLine(`erb result: ${result}`);
+      this.outputChannel.appendLine(`erb result: ${erbResult}`);
     } catch (err) {
       this.outputChannel.appendLine(`erb error: ${err}`);
+      this.outputChannel.show(true);
       throw err;
     }
 
-    return;
-
-    const lines = fileContent.split('\n');
+    const lines = erbResult.split('\n');
 
     for (const line of lines) {
       this.lineNumber++;

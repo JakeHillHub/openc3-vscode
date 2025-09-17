@@ -43,7 +43,7 @@ const esbuildERBPatcherPlugin = {
       console.log(`[erb-patcher] Patching file: ${args.path}`);
       let contents = await fsPromises.readFile(args.path, 'utf8');
 
-      // Resolve relative paths to real paths
+      // Resolve incorrect relative paths to dist path by replacing entire block of code
       const pattern1 = /replacement\:\sPromise[\s\S]*\.call\('join', '\\n'\)/;
       const replacement1 = `replacement: Promise.resolve([
         path.join(__dirname, 'ruby/opal.js'),
