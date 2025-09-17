@@ -33,6 +33,11 @@ interface CmdDeclaration {
     description: string;
 }
 
+interface CmdParameter {
+    name: string;
+
+}
+
 const cmdDeclarationRegex = /^COMMAND\s+(\S+)\s+(\S+)\s+(BIG_ENDIAN|LITTLE_ENDIAN)\s+"(.+)"$/;
 const inlineIrbRegex = /<%.*?%>/g;
 
@@ -59,6 +64,7 @@ class CmdFileParser {
 
     // Stash currently parsing command info in these private vars
     private currCmdDecl: CmdDeclaration | undefined;
+    private currCmdParams: CmdParameter[] | undefined;
 
     public constructor(filePath: string, outputChannel: vscode.OutputChannel) {
         this.outputChannel = outputChannel;
@@ -114,6 +120,10 @@ class CmdFileParser {
                 );
                 this.currCmdDecl = cmdDecl;
                 this.parserState = CmdParserState.CMD_BODY_PARAM;
+                break;
+            case CmdParserState.CMD_BODY_PARAM:
+                const
+                break;
             default:
                 console.log('default');
         }
