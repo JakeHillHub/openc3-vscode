@@ -35,7 +35,6 @@ interface CmdDeclaration {
 
 interface CmdParameter {
     name: string;
-
 }
 
 const cmdDeclarationRegex = /^COMMAND\s+(\S+)\s+(\S+)\s+(BIG_ENDIAN|LITTLE_ENDIAN)\s+"(.+)"$/;
