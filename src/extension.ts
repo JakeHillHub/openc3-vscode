@@ -10,27 +10,30 @@ const outputChannel = vscode.window.createOutputChannel('OpenC3 Scripting');
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-    const cmdTlmDB = new CosmosCmdTlmDB(outputChannel);
-    cmdTlmDB.compileWorkspace();
+  const cmdTlmDB = new CosmosCmdTlmDB(outputChannel);
+  cmdTlmDB.compileWorkspace();
 
-    const onDidSave = vscode.workspace.onDidSaveTextDocument((document: vscode.TextDocument) => {
-        if (document.fileName.endsWith('cmd.txt') || document.fileName.endsWith('tlm.txt')) {
-            cmdTlmDB.compileFile(document);
-        }
-    });
+  outputChannel.appendLine(`cmdtlmdb ${cmdTlmDB}`);
+  outputChannel.show(true);
 
-    const pythonProvider = vscode.languages.registerCompletionItemProvider(
-        ['python'],
-        new PythonCompletionProvider(cmdTlmDB),
-        '(' // This is the trigger character that activates the provider
-    );
+  const onDidSave = vscode.workspace.onDidSaveTextDocument((document: vscode.TextDocument) => {
+    if (document.fileName.endsWith('cmd.txt') || document.fileName.endsWith('tlm.txt')) {
+      cmdTlmDB.compileFile(document);
+    }
+  });
 
-    const cosmosApiProvider = vscode.languages.registerCompletionItemProvider(
-        ['python', 'ruby'],
-        new CosmosApiCompletionProvider()
-    );
+  const pythonProvider = vscode.languages.registerCompletionItemProvider(
+    ['python'],
+    new PythonCompletionProvider(cmdTlmDB),
+    '(' // This is the trigger character that activates the provider
+  );
 
-    context.subscriptions.push(pythonProvider, cosmosApiProvider, onDidSave);
+  const cosmosApiProvider = vscode.languages.registerCompletionItemProvider(
+    ['python', 'ruby'],
+    new CosmosApiCompletionProvider()
+  );
+
+  context.subscriptions.push(pythonProvider, cosmosApiProvider, onDidSave);
 }
 
 // This method is called when your extension is deactivated
