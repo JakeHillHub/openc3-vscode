@@ -2,8 +2,65 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import erb from 'erb';
+import { start } from 'repl';
+import { config } from 'process';
 
 const COMMAND_KEYWD = 'COMMAND';
+
+const ERB_CONFIG_NAME = 'openc3-erb.json';
+
+interface CosmosErbConfig {
+  path: string;
+  values: Map<string, string>;
+}
+
+export class CosmosProjectSearch {
+  private outputChannel: vscode.OutputChannel;
+
+  public constructor(outputChannel: vscode.OutputChannel) {
+    this.outputChannel = outputChannel;
+  }
+
+  public getErbConfig(startDir: string): CosmosErbConfig | undefined {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return undefined;
+    }
+
+    const workspacePaths = workspaceFolders.map((wf) => path.normalize(wf.uri.fsPath));
+    let currentDir = path.normalize(startDir);
+    let previousDir: string | undefined = undefined;
+
+    while (currentDir !== previousDir) {
+      const configPath = path.join(currentDir, ERB_CONFIG_NAME);
+
+      // Check if the config file exists
+      if (fs.existsSync(configPath)) {
+        const fileContent = fs.readFileSync(configPath, 'utf-8');
+        const parsed = JSON.parse(fileContent);
+        if (parsed === undefined) {
+          return undefined;
+        }
+
+        return {
+          path: configPath,
+          values: parsed,
+        };
+      }
+
+      // Check if we have hit a workspace folder
+      if (workspacePaths.includes(currentDir)) {
+        return undefined;
+      }
+
+      // Recurse up and check for the infinite loop condition
+      previousDir = currentDir;
+      currentDir = path.dirname(currentDir);
+    }
+
+    return undefined;
+  }
+}
 
 enum CmdParamType {
   INT,
@@ -214,18 +271,6 @@ export class CosmosCmdTlmDB {
 
   public constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
-    this.loadMockData();
-  }
-
-  private loadMockData() {
-    this.cmdMap.set('TARGET1', [
-      { id: 'CMD_ID1', description: 'Command One', arguments: ['ARG1', 'ARG2'] },
-      { id: 'CMD_ID2', description: 'Command Two', arguments: ['ARG3'] },
-    ]);
-    this.tlmMap.set('TARGET1', [
-      { id: 'PKT_ID1', description: 'Packet One', fields: ['FIELD1', 'FIELD2'] },
-      { id: 'PKT_ID2', description: 'Packet Two', fields: ['FIELD3'] },
-    ]);
   }
 
   public getCommands(target: string): CmdDefinition[] | undefined {
@@ -245,6 +290,7 @@ export class CosmosCmdTlmDB {
     this.outputChannel.appendLine('here is a new log');
     this.outputChannel.appendLine(`Recompiling cmd/tlm def for file ${document.uri.fsPath}`);
     const parser = new CmdFileParser(document.uri.fsPath, this.outputChannel);
+
     await parser.parse();
   }
 }

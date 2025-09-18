@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 // import * as myExtension from '../../extension';
 
-import * as cmdTlmDB from '../cmdTlmDB';
+import * as cmdTlmDB from '../cosmos';
 
 const outputChannel = vscode.window.createOutputChannel('OpenC3 Scripting Tests');
 

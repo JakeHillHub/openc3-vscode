@@ -3,7 +3,8 @@
 import * as vscode from 'vscode';
 import { PythonCompletionProvider } from './pythonCompletion';
 import { CosmosApiCompletionProvider } from './cosmosApiSuggestions';
-import { CosmosCmdTlmDB } from './cmdTlmDB';
+import { CosmosCmdTlmDB, CosmosProjectSearch } from './cosmos';
+import path from 'path';
 
 const outputChannel = vscode.window.createOutputChannel('OpenC3 Scripting');
 
@@ -15,6 +16,12 @@ export function activate(context: vscode.ExtensionContext) {
 
   outputChannel.appendLine(`cmdtlmdb ${cmdTlmDB}`);
   outputChannel.show(true);
+
+  const search = new CosmosProjectSearch(outputChannel);
+  const folders = vscode.workspace.workspaceFolders;
+  if (folders !== undefined) {
+    search.getErbConfig(folders[0].uri.fsPath + '/nested1');
+  }
 
   const onDidSave = vscode.workspace.onDidSaveTextDocument((document: vscode.TextDocument) => {
     if (document.fileName.endsWith('cmd.txt') || document.fileName.endsWith('tlm.txt')) {
