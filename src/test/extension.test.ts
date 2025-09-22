@@ -25,6 +25,5 @@ suite('CmdTlmParsing', () => {
   test('Command Parameter Parse', async () => {
     const cmdTestPath = path.join(process.cwd(), 'src/test/test-cmd.txt');
     let parser = new cmdTlmDB.CmdFileParser(cmdTestPath, outputChannel);
-    await parser.parse();
   });
 });

@@ -7,11 +7,67 @@ import { config } from 'process';
 
 const COMMAND_KEYWD = 'COMMAND';
 
+const PLUGIN_CONFIG_NAME = 'plugin.txt';
 const ERB_CONFIG_NAME = 'openc3-erb.json';
 
 interface CosmosErbConfig {
   path: string;
   values: Map<string, string>;
+}
+
+const pluginVarExpr = /^VARIABLE\s+(\S+)\s+(.*)$/;
+
+export class CosmosPluginConfig {
+  private outputChannel: vscode.OutputChannel;
+  private path: string;
+
+  public variables: Map<string, string>;
+
+  constructor(pluginPath: string, outputChannel: vscode.OutputChannel) {
+    this.outputChannel = outputChannel;
+    this.path = pluginPath;
+    this.variables = new Map<string, string>();
+  }
+
+  private parsePluginVars() {
+    const contents = fs.readFileSync(this.path, 'utf-8');
+    const lines = contents.split('\n');
+    for (let line of lines) {
+      line = line.trim();
+
+      /* VARIABLE lines only */
+      const varMatch = line.match(pluginVarExpr);
+      if (varMatch) {
+        const [_, name, value] = varMatch;
+        this.variables.set(name, value);
+        continue;
+      }
+    }
+  }
+
+  public async parse(erbValues: Map<string, string>) {
+    this.parsePluginVars();
+    Object.assign(erbValues, this.variables);
+
+    const contents = fs.readFileSync(this.path, 'utf-8');
+    let erbResult = undefined;
+
+    try {
+      erbResult = await erb({
+        template: contents,
+        data: {
+          values: this.variables,
+        },
+        timeout: 5000,
+      });
+    } catch (err) {
+      this.outputChannel.appendLine(`erb error: ${err}`);
+      this.outputChannel.show(true);
+      throw err;
+    }
+
+    this.outputChannel.appendLine(`plugin erb result ${JSON.stringify(erbResult)}`);
+  }
 }
 
 export class CosmosProjectSearch {
@@ -21,7 +77,7 @@ export class CosmosProjectSearch {
     this.outputChannel = outputChannel;
   }
 
-  public getErbConfig(startDir: string): CosmosErbConfig | undefined {
+  private searchPath(startDir: string, fileName: string): string | undefined {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
       return undefined;
@@ -32,20 +88,11 @@ export class CosmosProjectSearch {
     let previousDir: string | undefined = undefined;
 
     while (currentDir !== previousDir) {
-      const configPath = path.join(currentDir, ERB_CONFIG_NAME);
+      const configPath = path.join(currentDir, fileName);
 
       // Check if the config file exists
       if (fs.existsSync(configPath)) {
-        const fileContent = fs.readFileSync(configPath, 'utf-8');
-        const parsed = JSON.parse(fileContent);
-        if (parsed === undefined) {
-          return undefined;
-        }
-
-        return {
-          path: configPath,
-          values: parsed,
-        };
+        return configPath;
       }
 
       // Check if we have hit a workspace folder
@@ -59,6 +106,34 @@ export class CosmosProjectSearch {
     }
 
     return undefined;
+  }
+
+  public getPluginConfig(startDir: string): CosmosPluginConfig | undefined {
+    const configPath = this.searchPath(startDir, PLUGIN_CONFIG_NAME);
+    if (!configPath) {
+      return undefined;
+    }
+
+    const pluginConfig = new CosmosPluginConfig(configPath, this.outputChannel);
+    return pluginConfig;
+  }
+
+  public getErbConfig(startDir: string): CosmosErbConfig | undefined {
+    const configPath = this.searchPath(startDir, ERB_CONFIG_NAME);
+    if (!configPath) {
+      return undefined;
+    }
+
+    const fileContent = fs.readFileSync(configPath, 'utf-8');
+    const parsed = JSON.parse(fileContent);
+    if (parsed === undefined) {
+      return undefined;
+    }
+
+    return {
+      path: configPath,
+      values: parsed,
+    };
   }
 }
 
@@ -214,25 +289,39 @@ export class CmdFileParser {
     return line.trim();
   }
 
-  public async parse() {
-    this.outputChannel.appendLine('loading file');
+  public async parse(
+    erbConfig: CosmosErbConfig | undefined,
+    pluginConfig: CosmosPluginConfig | undefined
+  ) {
     const fileContent = fs.readFileSync(this.path, 'utf-8');
-    this.outputChannel.appendLine('new parse');
+
+    const erbValues = new Map<string, string>();
+    if (erbConfig !== undefined) {
+      /* Load initial erbConfig values for plugin.txt erb usage */
+      Object.assign(erbValues, erbConfig.values);
+    }
+
+    if (pluginConfig !== undefined) {
+      await pluginConfig.parse(erbValues);
+      Object.assign(erbValues, pluginConfig.variables);
+    }
+
+    if (erbConfig !== undefined) {
+      Object.assign(
+        erbValues,
+        erbConfig.values
+      ); /* Re-write/overwrite anything from plugin.txt defined by openc3-erb.json instead */
+    }
 
     let erbResult = undefined;
     try {
-      this.outputChannel.appendLine(`cwd : ${process.cwd()}`);
       erbResult = await erb({
         template: fileContent,
         data: {
-          values: {
-            target_name: 'TEST',
-            addr: '0x5555',
-          },
+          values: erbValues,
         },
         timeout: 5000,
       });
-      this.outputChannel.appendLine(`erb result: ${erbResult}`);
     } catch (err) {
       this.outputChannel.appendLine(`erb error: ${err}`);
       this.outputChannel.show(true);
@@ -287,10 +376,14 @@ export class CosmosCmdTlmDB {
   }
 
   public async compileFile(document: vscode.TextDocument) {
-    this.outputChannel.appendLine('here is a new log');
     this.outputChannel.appendLine(`Recompiling cmd/tlm def for file ${document.uri.fsPath}`);
+
+    const cSearch = new CosmosProjectSearch(this.outputChannel);
+    const erbConfig = cSearch.getErbConfig(path.dirname(document.uri.fsPath));
+
     const parser = new CmdFileParser(document.uri.fsPath, this.outputChannel);
 
-    await parser.parse();
+    const pluginConfig = cSearch.getPluginConfig(path.dirname(document.uri.fsPath));
+    await parser.parse(erbConfig, pluginConfig);
   }
 }
