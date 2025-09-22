@@ -16,20 +16,24 @@ interface CosmosErbConfig {
 }
 
 const pluginVarExpr = /^VARIABLE\s+(\S+)\s+(.*)$/;
+const pluginTargetExpr = /^TARGET\s+(\S+)\s+(\S+)$/;
 
 export class CosmosPluginConfig {
   private outputChannel: vscode.OutputChannel;
   private path: string;
 
   public variables: Map<string, string>;
+  public targetNames: Map<string, string>;
 
   constructor(pluginPath: string, outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
     this.path = pluginPath;
+
     this.variables = new Map<string, string>();
+    this.targetNames = new Map<string, string>();
   }
 
-  private parsePluginVars() {
+  private pluginInitialPass() {
     const contents = fs.readFileSync(this.path, 'utf-8');
     const lines = contents.split('\n');
     for (let line of lines) {
@@ -46,7 +50,7 @@ export class CosmosPluginConfig {
   }
 
   public async parse(erbValues: Map<string, string>) {
-    this.parsePluginVars();
+    this.pluginInitialPass();
     Object.assign(erbValues, this.variables);
 
     const contents = fs.readFileSync(this.path, 'utf-8');
@@ -56,7 +60,7 @@ export class CosmosPluginConfig {
       erbResult = await erb({
         template: contents,
         data: {
-          values: this.variables,
+          values: erbValues,
         },
         timeout: 5000,
       });
@@ -66,7 +70,26 @@ export class CosmosPluginConfig {
       throw err;
     }
 
-    this.outputChannel.appendLine(`plugin erb result ${JSON.stringify(erbResult)}`);
+    const erbLines = erbResult.split('\n');
+    for (let line of erbLines) {
+      line = line.trim();
+
+      /* VARIABLE lines - since vars could be defined by erb, we must reparse those too */
+      const varMatch = line.match(pluginVarExpr);
+      if (varMatch) {
+        const [_, name, value] = varMatch;
+        this.variables.set(name, value);
+        continue;
+      }
+
+      /* TARGET lines */
+      const targMatch = line.match(pluginTargetExpr);
+      if (targMatch) {
+        const [_, target, name] = targMatch;
+        this.targetNames.set(target, name);
+        continue;
+      }
+    }
   }
 }
 
@@ -295,6 +318,8 @@ export class CmdFileParser {
   ) {
     const fileContent = fs.readFileSync(this.path, 'utf-8');
 
+    this.outputChannel.appendLine(`erb config: ${JSON.stringify(erbConfig)}`);
+
     const erbValues = new Map<string, string>();
     if (erbConfig !== undefined) {
       /* Load initial erbConfig values for plugin.txt erb usage */
@@ -303,15 +328,14 @@ export class CmdFileParser {
 
     if (pluginConfig !== undefined) {
       await pluginConfig.parse(erbValues);
+
+      this.outputChannel.appendLine(`plugin vars: ${JSON.stringify(pluginConfig.variables)}`);
+      this.outputChannel.appendLine(`plugin targets: ${JSON.stringify(pluginConfig.targetNames)}`);
+
       Object.assign(erbValues, pluginConfig.variables);
     }
 
-    if (erbConfig !== undefined) {
-      Object.assign(
-        erbValues,
-        erbConfig.values
-      ); /* Re-write/overwrite anything from plugin.txt defined by openc3-erb.json instead */
-    }
+    this.outputChannel.appendLine(`erb values: ${JSON.stringify(erbValues)}`);
 
     let erbResult = undefined;
     try {
