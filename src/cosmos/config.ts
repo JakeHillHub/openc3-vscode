@@ -1,0 +1,177 @@
+/* Manage plugin configuration and erb loading */
+
+import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+import erb from 'erb';
+
+const PLUGIN_CONFIG_NAME = 'plugin.txt';
+const ERB_CONFIG_NAME = 'openc3-erb.json';
+
+export interface CosmosERBConfig {
+  path: string | undefined;
+  variables: Map<string, string>;
+  patterns: Map<string, string>;
+}
+
+const pluginVarExpr = /^VARIABLE\s+(\S+)\s+(.*)$/;
+const pluginTargetExpr = /^TARGET\s+(\S+)\s+(\S+)$/;
+
+export async function parseERB(contents: string, variables: Map<string, string>): Promise<string> {
+  return await erb({
+    template: contents,
+    data: {
+      values: variables,
+    },
+    timeout: 5000,
+  });
+}
+
+export class CosmosPluginConfig {
+  private outputChannel: vscode.OutputChannel;
+  private path: string | undefined;
+
+  public variables: Map<string, string>;
+  public targets: Map<string, string>;
+
+  constructor(pluginPath: string | undefined, outputChannel: vscode.OutputChannel) {
+    this.outputChannel = outputChannel;
+
+    this.path = pluginPath;
+
+    this.variables = new Map<string, string>();
+    this.targets = new Map<string, string>();
+  }
+
+  private async loadFilePatterns(
+    path: string,
+    patternReplace: Map<string, string>
+  ): Promise<string> {
+    let contents = await fs.promises.readFile(path, 'utf-8');
+
+    for (const [re, value] of Object.entries(patternReplace)) {
+      contents = contents.replace(new RegExp(re, 'g'), value);
+    }
+
+    const lines = contents.split('\n');
+    for (let line of lines) {
+      line = line.trim();
+
+      /* VARIABLE lines */
+      const varMatch = line.match(pluginVarExpr);
+      if (varMatch) {
+        const [_, name, value] = varMatch;
+        this.variables.set(name, value);
+        continue;
+      }
+    }
+
+    return contents;
+  }
+
+  public async parse(erbConfig: CosmosERBConfig) {
+    if (this.path === undefined) {
+      return;
+    }
+
+    const contents = await this.loadFilePatterns(this.path, erbConfig.patterns);
+    const erbVars = new Map<string, string>(Object.entries(erbConfig.variables));
+    Object.assign(erbVars, this.variables);
+
+    try {
+      const erbResult = await parseERB(contents, erbVars);
+      const erbLines = erbResult.split('\n');
+      for (let line of erbLines) {
+        line = line.trim();
+
+        /* TARGET lines */
+        const targMatch = line.match(pluginTargetExpr);
+        if (targMatch) {
+          const [_, targetFolder, targetName] = targMatch;
+          this.targets.set(targetFolder, targetName);
+          continue;
+        }
+      }
+    } catch (err) {
+      this.outputChannel.appendLine(`Failed to parse erb for file ${this.path}, ${err}`);
+      this.outputChannel.show(true);
+      return;
+    }
+  }
+}
+
+export class CosmosProjectSearch {
+  private outputChannel: vscode.OutputChannel;
+
+  public constructor(outputChannel: vscode.OutputChannel) {
+    this.outputChannel = outputChannel;
+  }
+
+  private searchPath(startDir: string, fileName: string): string | undefined {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return undefined;
+    }
+
+    const workspacePaths = workspaceFolders.map((wf) => path.normalize(wf.uri.fsPath));
+    let currentDir = path.normalize(startDir);
+    let previousDir: string | undefined = undefined;
+
+    while (currentDir !== previousDir) {
+      const configPath = path.join(currentDir, fileName);
+
+      // Check if the config file exists
+      if (fs.existsSync(configPath)) {
+        return configPath;
+      }
+
+      // Check if we have hit a workspace folder
+      if (workspacePaths.includes(currentDir)) {
+        return undefined;
+      }
+
+      // Recurse up and check for the infinite loop condition
+      previousDir = currentDir;
+      currentDir = path.dirname(currentDir);
+    }
+
+    return undefined;
+  }
+
+  public getPluginConfig(startDir: string): [CosmosPluginConfig, string] {
+    const configPath = this.searchPath(startDir, PLUGIN_CONFIG_NAME);
+    if (!configPath) {
+      return [new CosmosPluginConfig(undefined, this.outputChannel), ''];
+    }
+
+    const pluginConfig = new CosmosPluginConfig(configPath, this.outputChannel);
+    return [pluginConfig, path.dirname(configPath)];
+  }
+
+  public getERBConfig(startDir: string): CosmosERBConfig {
+    const configPath = this.searchPath(startDir, ERB_CONFIG_NAME);
+    if (!configPath) {
+      return {
+        path: undefined,
+        variables: new Map<string, string>(),
+        patterns: new Map<string, string>(),
+      };
+    }
+
+    const fileContent = fs.readFileSync(configPath, 'utf-8');
+    const parsed = JSON.parse(fileContent);
+    if (parsed === undefined) {
+      return {
+        path: configPath,
+        variables: new Map<string, string>(),
+        patterns: new Map<string, string>(),
+      };
+    }
+
+    return {
+      path: configPath,
+      variables: parsed.variables,
+      patterns: parsed.patterns,
+    };
+  }
+}

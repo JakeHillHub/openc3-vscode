@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { CosmosCmdTlmDB } from './cosmos';
+import { CosmosCmdTlmDB } from './cosmos/cmdTlm';
 
 export class PythonCompletionProvider implements vscode.CompletionItemProvider {
   private cmdTlmDB: CosmosCmdTlmDB;

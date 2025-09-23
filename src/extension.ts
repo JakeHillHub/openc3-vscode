@@ -1,38 +1,85 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+
 import { PythonCompletionProvider } from './pythonCompletion';
 import { CosmosApiCompletionProvider } from './cosmosApiSuggestions';
-import { CosmosCmdTlmDB, CosmosProjectSearch } from './cosmos';
-import path from 'path';
+import { CosmosCmdTlmDB } from './cosmos/cmdTlm';
 
 const outputChannel = vscode.window.createOutputChannel('OpenC3 Scripting');
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+async function filenamesExist(dir: string, options: string[]): Promise<boolean> {
+  async function search(currentDir: string): Promise<boolean> {
+    const entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+
+      if (entry.isDirectory()) {
+        await search(fullPath); // Recursively search subdirectories
+      }
+
+      for (const option of options) {
+        if (entry.name === option) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  return await search(dir);
+}
+
+async function preFlightChecks(): Promise<boolean> {
+  /* Verify that this extension should actually activate based on cosmos project commonly found files */
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    return false; /* No directory opened, nothing to do */
+  }
+
+  for (const folder of workspaceFolders) {
+    if (
+      await filenamesExist(folder.uri.fsPath, [
+        'cmd.txt' /* If none of these are present, probably not a cosmos project */,
+        'tlm.txt',
+        'openc3-erb.json',
+        'plugin.txt',
+      ])
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export async function activate(context: vscode.ExtensionContext) {
+  if (!(await preFlightChecks())) {
+    outputChannel.appendLine('Extension not starting, not a cosmos/openc3 project');
+    return; /* Extension does not need to do anything */
+  }
+
   const cmdTlmDB = new CosmosCmdTlmDB(outputChannel);
   cmdTlmDB.compileWorkspace();
 
-  outputChannel.appendLine(`cmdtlmdb ${cmdTlmDB}`);
+  outputChannel.appendLine(`started`);
   outputChannel.show(true);
 
-  const search = new CosmosProjectSearch(outputChannel);
-  const folders = vscode.workspace.workspaceFolders;
-  if (folders !== undefined) {
-    search.getErbConfig(folders[0].uri.fsPath + '/nested1');
-  }
+  /* Watchers */
+  const cmdDBListener = vscode.workspace.createFileSystemWatcher('**/cmd.txt');
+  cmdDBListener.onDidChange((uri) => cmdTlmDB.compileCmdFile(uri.fsPath));
+  cmdDBListener.onDidCreate((uri) => cmdTlmDB.compileCmdFile(uri.fsPath));
 
-  const onDidSave = vscode.workspace.onDidSaveTextDocument((document: vscode.TextDocument) => {
-    if (document.fileName.endsWith('cmd.txt') || document.fileName.endsWith('tlm.txt')) {
-      cmdTlmDB.compileFile(document);
-    }
-  });
+  const tlmDBListener = vscode.workspace.createFileSystemWatcher('**/tlm.txt');
+  tlmDBListener.onDidChange((uri) => outputChannel.appendLine(`uri ${uri}`));
+  tlmDBListener.onDidCreate((uri) => outputChannel.appendLine(`uri ${uri}`));
 
   const pythonProvider = vscode.languages.registerCompletionItemProvider(
     ['python'],
     new PythonCompletionProvider(cmdTlmDB),
-    '(' // This is the trigger character that activates the provider
+    '('
   );
 
   const cosmosApiProvider = vscode.languages.registerCompletionItemProvider(
@@ -40,8 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
     new CosmosApiCompletionProvider()
   );
 
-  context.subscriptions.push(pythonProvider, cosmosApiProvider, onDidSave);
+  context.subscriptions.push(pythonProvider, cosmosApiProvider, cmdDBListener, tlmDBListener);
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}
