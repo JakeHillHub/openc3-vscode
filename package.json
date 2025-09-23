@@ -16,6 +16,29 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "openc3-cosmos",
+        "aliases": [
+          "OpenC3 Cosmos"
+        ],
+        "filenames": [
+          "plugin.txt",
+          "cmd.txt",
+          "tlm.txt",
+          "erb-cmd.txt",
+          "erb-tlm.txt",
+          "erb-plugin.txt"
+        ]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "openc3-cosmos",
+        "scopeName": "source.openc3-cosmos",
+        "path": "./syntaxes/openc3-cosmos.tmLanguage.json"
+      }
+    ],
     "commands": [
       {
         "command": "openc3.showERB",
