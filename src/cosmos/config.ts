@@ -5,7 +5,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import erb from 'erb';
 
-const TARGET_NAME_ERB_VAR = 'target_name';
+export const TARGET_NAME_ERB_VAR = 'target_name';
+
 const PLUGIN_CONFIG_NAME = 'plugin.txt';
 const ERB_CONFIG_NAME = 'openc3-erb.json';
 
