@@ -5,6 +5,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import erb from 'erb';
 
+const TARGET_NAME_ERB_VAR = 'target_name';
 const PLUGIN_CONFIG_NAME = 'plugin.txt';
 const ERB_CONFIG_NAME = 'openc3-erb.json';
 
@@ -18,6 +19,8 @@ const pluginVarExpr = /^VARIABLE\s+(\S+)\s+(.*)$/;
 const pluginTargetExpr = /^TARGET\s+(\S+)\s+(\S+)$/;
 
 export async function parseERB(contents: string, variables: Map<string, string>): Promise<string> {
+  contents = contents.replace(/^\s*#.*$/gm, ''); /* Remove comments */
+
   return await erb({
     template: contents,
     data: {
@@ -93,7 +96,7 @@ export class CosmosPluginConfig {
         const targMatch = line.match(pluginTargetExpr);
         if (targMatch) {
           const [_, targetFolder, targetName] = targMatch;
-          this.targets.set(targetFolder, targetName);
+          this.targets.set(targetName, targetFolder);
           continue;
         }
       }
@@ -141,6 +144,30 @@ export class CosmosProjectSearch {
     }
 
     return undefined;
+  }
+
+  public deriveTargetNames(
+    pluginConfig: CosmosPluginConfig,
+    pluginDir: string,
+    filePath: string
+  ): Array<string> {
+    const targetNames = new Array<string>();
+
+    const basename = path.basename(filePath);
+    if (basename !== 'cmd.txt' && basename !== 'tlm.txt') {
+      targetNames.push(path.basename(pluginDir));
+      return targetNames;
+    }
+
+    this.outputChannel.appendLine(`plugin targets: ${JSON.stringify(pluginConfig.targets)}`);
+
+    for (const [targetName, targetFolder] of pluginConfig.targets) {
+      if (filePath.includes(targetFolder)) {
+        targetNames.push(targetName);
+      }
+    }
+
+    return targetNames;
   }
 
   public getPluginConfig(startDir: string): [CosmosPluginConfig, string] {
@@ -191,14 +218,24 @@ export class CosmosProjectSearch {
 
   public async getERBParseResult(filePath: string): Promise<string> {
     const erbConfig = this.getERBConfig(path.dirname(filePath));
-    const [plugin, _] = this.getPluginConfig(path.dirname(filePath));
+    const [plugin, pluginPath] = this.getPluginConfig(path.dirname(filePath));
     await plugin.parse(erbConfig);
 
-    const contents = await fs.promises.readFile(filePath, {
+    const derivedTargetNames = this.deriveTargetNames(plugin, pluginPath, filePath);
+    this.outputChannel.appendLine(JSON.stringify(derivedTargetNames));
+
+    let contents = await fs.promises.readFile(filePath, {
       encoding: 'utf-8',
     });
+    for (const [re, value] of erbConfig.patterns) {
+      contents = contents.replace(new RegExp(re, 'g'), value);
+    }
 
     const variables = new Map<string, string>();
+    if (derivedTargetNames.length !== 0) {
+      /* Grab the first strictly for visualization */
+      variables.set(TARGET_NAME_ERB_VAR, derivedTargetNames[0]);
+    }
     for (const [key, value] of Object.entries(erbConfig.variables)) {
       variables.set(key, value);
     }

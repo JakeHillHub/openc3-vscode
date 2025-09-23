@@ -23,13 +23,16 @@
           "OpenC3 Cosmos"
         ],
         "filenames": [
+          "target.txt",
           "plugin.txt",
           "cmd.txt",
           "tlm.txt",
+          "erb-target.txt",
           "erb-cmd.txt",
           "erb-tlm.txt",
           "erb-plugin.txt"
-        ]
+        ],
+        "configuration": "./syntaxes/openc3-language-configuration.json"
       }
     ],
     "grammars": [
@@ -51,7 +54,7 @@
         {
           "command": "openc3.showERB",
           "group": "navigation@1",
-          "when": "resourceExtname == .txt && resourceFilename == cmd.txt"
+          "when": "resourceExtname == .txt && (resourceFilename == cmd.txt || resourceFilename == tlm.txt || resourceFilename == plugin.txt || resourceFilename == target.txt)"
         }
       ]
     }

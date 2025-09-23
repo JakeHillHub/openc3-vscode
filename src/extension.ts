@@ -102,7 +102,7 @@ async function showParsedERB(filePath: string) {
     const uri = vscode.Uri.parse(`${ParsedContentProvider.scheme}:${key}`);
     const newDoc = await vscode.workspace.openTextDocument(uri);
     parsedContentProvider.update(uri, parsedResult);
-    await vscode.window.showTextDocument(newDoc, vscode.ViewColumn.Beside);
+    await vscode.window.showTextDocument(newDoc, vscode.ViewColumn.Beside, true);
   } catch (err) {
     vscode.window.showErrorMessage(`Failed to parse ERB within file: ${err}`);
   }
@@ -145,6 +145,9 @@ export async function activate(context: vscode.ExtensionContext) {
   tlmDBListener.onDidChange((uri) => outputChannel.appendLine(`uri ${uri}`));
   tlmDBListener.onDidCreate((uri) => outputChannel.appendLine(`uri ${uri}`));
 
+  const pluginListener = vscode.workspace.createFileSystemWatcher('**/plugin.txt');
+  pluginListener.onDidChange(async (uri) => await showParsedERBIfOpen(uri.fsPath));
+
   const pythonProvider = vscode.languages.registerCompletionItemProvider(
     ['python'],
     new PythonCompletionProvider(cmdTlmDB),
@@ -172,6 +175,7 @@ export async function activate(context: vscode.ExtensionContext) {
     cosmosApiProvider,
     cmdDBListener,
     tlmDBListener,
+    pluginListener,
     showERBCmd,
     vscode.workspace.registerTextDocumentContentProvider(
       ParsedContentProvider.scheme,

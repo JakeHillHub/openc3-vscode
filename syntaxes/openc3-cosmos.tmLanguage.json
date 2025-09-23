@@ -9,6 +9,16 @@
       "end": "%>",
       "name": "source.ruby.embedded.erb",
       "contentName": "source.ruby",
+      "beginCaptures": {
+        "0": {
+          "name": "keyword.control.openc3-cosmos"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "keyword.control.openc3-cosmos"
+        }
+      },
       "patterns": [
         {
           "include": "source.ruby"
@@ -17,23 +27,31 @@
     },
     {
       "name": "keyword.control.openc3-cosmos",
-      "match": "\\b(COMMAND|TELEMETRY|TARGET|INTERFACE|VARIABLE)\\b"
+      "match": "\\b(COMMAND|TELEMETRY|INTERFACE|VARIABLE|TARGET)\\b"
     },
     {
       "name": "entity.name.function.openc3-cosmos",
       "match": "\\b(APPEND_)?(ID_)?(ARRAY_)?PARAMETER\\b"
     },
     {
-      "name": "entity.name.type",
-      "match": "\\b(U?INT|FLOAT|BLOCK|STRING|DERIVED)\\b"
+      "name": "entity.name.function.openc3-cosmos",
+      "match": "\\b(PROTOCOL|MAP_TARGET|OPTION)\\b"
+    },
+    {
+      "name": "entity.name.type.openc3-cosmos",
+      "match": "\\b(U?INT|FLOAT|BLOCK|STRING|DERIVED|STATE|(?:READ|WRITE)_CONVERSION|DISABLE_MESSAGES)\\b"
     },
     {
       "name": "constant.character",
-      "match": "\\b(?:BIG_ENDIAN|LITTLE_ENDIAN|(?:MAX|MIN)_(?:U?INT|FLOAT)(?:8|16|32|64|128))\\b"
+      "match": "\\b(?:BIG_ENDIAN|LITTLE_ENDIAN|nil|(?:MAX|MIN)_(?:U?INT|FLOAT)(?:8|16|32|64|128))\\b"
     },
     {
       "name": "constant.numeric.openc3-cosmos",
       "match": "\\b[0-9]+(?:\\.[0-9]+)?\\b"
+    },
+    {
+      "name": "constant.numeric.openc3-cosmos",
+      "match": "\\b0x[0-9a-fA-F]+\\b"
     },
     {
       "name": "string.quoted.double.openc3-cosmos",
