@@ -56,6 +56,71 @@ async function preFlightChecks(): Promise<boolean> {
   return false;
 }
 
+class ContentStore {
+  private static content = new Map<string, string>();
+
+  public static set(key: string, value: string) {
+    this.content.set(key, value);
+  }
+
+  public static get(key: string): string {
+    return this.content.get(key) || '';
+  }
+
+  public static remove(key: string) {
+    this.content.delete(key);
+  }
+}
+
+class ParsedContentProvider implements vscode.TextDocumentContentProvider {
+  // This is the custom URI scheme
+  public static readonly scheme = 'parsed-result';
+
+  private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
+  public readonly onDidChange = this._onDidChange.event;
+
+  public provideTextDocumentContent(uri: vscode.Uri): string {
+    return ContentStore.get(uri.fsPath);
+  }
+
+  public update(uri: vscode.Uri, content: string) {
+    ContentStore.set(uri.path, content);
+    this._onDidChange.fire(uri);
+  }
+}
+
+const parsedContentProvider = new ParsedContentProvider();
+
+async function showParsedERB(filePath: string) {
+  try {
+    const csearch = new CosmosProjectSearch(outputChannel);
+    const parsedResult = await csearch.getERBParseResult(filePath);
+    const fileName = path.basename(filePath);
+    const key = `erb-${fileName}`;
+
+    ContentStore.set(key, parsedResult);
+    const uri = vscode.Uri.parse(`${ParsedContentProvider.scheme}:${key}`);
+    const newDoc = await vscode.workspace.openTextDocument(uri);
+    parsedContentProvider.update(uri, parsedResult);
+    await vscode.window.showTextDocument(newDoc, vscode.ViewColumn.Beside);
+  } catch (err) {
+    vscode.window.showErrorMessage(`Failed to parse ERB within file: ${err}`);
+  }
+}
+
+async function showParsedERBIfOpen(filePath: string) {
+  const key = `erb-${path.basename(filePath)}`;
+  const uri = vscode.Uri.parse(`${ParsedContentProvider.scheme}:${key}`);
+
+  const isDocumentOpen = vscode.window.visibleTextEditors.some(
+    (editor) => editor.document.uri.toString() === uri.toString()
+  );
+
+  if (isDocumentOpen) {
+    showParsedERB(filePath);
+  }
+}
+
 export async function activate(context: vscode.ExtensionContext) {
   if (!(await preFlightChecks())) {
     outputChannel.appendLine('Extension not starting, not a cosmos/openc3 project');
@@ -70,7 +135,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
   /* Watchers */
   const cmdDBListener = vscode.workspace.createFileSystemWatcher('**/cmd.txt');
-  cmdDBListener.onDidChange((uri) => cmdTlmDB.compileCmdFile(uri.fsPath));
+  cmdDBListener.onDidChange(async (uri) => {
+    cmdTlmDB.compileCmdFile(uri.fsPath);
+    await showParsedERBIfOpen(uri.fsPath); /* Update ERB View Pane */
+  });
   cmdDBListener.onDidCreate((uri) => cmdTlmDB.compileCmdFile(uri.fsPath));
 
   const tlmDBListener = vscode.workspace.createFileSystemWatcher('**/tlm.txt');
@@ -91,15 +159,12 @@ export async function activate(context: vscode.ExtensionContext) {
   const showERBCmd = vscode.commands.registerCommand('openc3.showERB', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
+      vscode.window.showInformationMessage('No active editor.');
       return;
     }
 
     const document = editor.document;
-
-    const csearch = new CosmosProjectSearch(outputChannel);
-    const result = await csearch.getERBParseResult(document.uri.fsPath);
-
-    outputChannel.appendLine(`erb parse result: ${result}`);
+    await showParsedERB(document.uri.fsPath);
   });
 
   context.subscriptions.push(
@@ -107,7 +172,11 @@ export async function activate(context: vscode.ExtensionContext) {
     cosmosApiProvider,
     cmdDBListener,
     tlmDBListener,
-    showERBCmd
+    showERBCmd,
+    vscode.workspace.registerTextDocumentContentProvider(
+      ParsedContentProvider.scheme,
+      parsedContentProvider
+    )
   );
 }
 

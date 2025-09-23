@@ -206,6 +206,7 @@ export class CosmosProjectSearch {
       variables.set(key, value);
     }
 
-    return await parseERB(contents, variables);
+    const parsed = await parseERB(contents, variables);
+    return parsed.replace(/^(?:\s*[\r\n]){1,}/gm, '');
   }
 }

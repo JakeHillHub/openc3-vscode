@@ -19,9 +19,19 @@
     "commands": [
       {
         "command": "openc3.showERB",
-        "title": "openc3: Compile ERB evaluate and show results"
+        "title": "openc3: Compile ERB evaluate and show results",
+        "icon": "$(eye)"
       }
-    ]
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "openc3.showERB",
+          "group": "navigation@1",
+          "when": "resourceExtname == .txt && resourceFilename == cmd.txt"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
