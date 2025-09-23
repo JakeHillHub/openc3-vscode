@@ -1,7 +1,7 @@
 {
-  "name": "openc3-scripting",
-  "displayName": "openc3-scripting",
-  "description": "openc3 scripting support",
+  "name": "openc3",
+  "displayName": "openc3",
+  "description": "openc3 local development support, cmd/tlm, scripting, etc.",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.104.0"
@@ -16,18 +16,10 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "configuration": {
-      "title": "openc3",
-      "properties": {
-        "erb.variables": {
-          "type": "object"
-        }
-      }
-    },
     "commands": [
       {
-        "command": "openc3-scripting.helloWorld",
-        "title": "Hello World"
+        "command": "openc3.showERB",
+        "title": "openc3: Compile ERB evaluate and show results"
       }
     ]
   },

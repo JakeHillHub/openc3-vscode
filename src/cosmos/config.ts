@@ -21,7 +21,7 @@ export async function parseERB(contents: string, variables: Map<string, string>)
   return await erb({
     template: contents,
     data: {
-      values: variables,
+      values: Object.fromEntries(variables),
     },
     timeout: 5000,
   });
@@ -49,7 +49,7 @@ export class CosmosPluginConfig {
   ): Promise<string> {
     let contents = await fs.promises.readFile(path, 'utf-8');
 
-    for (const [re, value] of Object.entries(patternReplace)) {
+    for (const [re, value] of patternReplace) {
       contents = contents.replace(new RegExp(re, 'g'), value);
     }
 
@@ -75,8 +75,13 @@ export class CosmosPluginConfig {
     }
 
     const contents = await this.loadFilePatterns(this.path, erbConfig.patterns);
-    const erbVars = new Map<string, string>(Object.entries(erbConfig.variables));
-    Object.assign(erbVars, this.variables);
+    const erbVars = new Map<string, string>();
+    for (const [key, value] of erbConfig.variables) {
+      erbVars.set(key, value);
+    }
+    for (const [key, value] of this.variables) {
+      erbVars.set(key, value);
+    }
 
     try {
       const erbResult = await parseERB(contents, erbVars);
@@ -168,10 +173,39 @@ export class CosmosProjectSearch {
       };
     }
 
+    const varsMap = new Map<string, string>();
+    for (const [key, value] of Object.entries(parsed.variables as Record<string, string>)) {
+      varsMap.set(key, value);
+    }
+    const patternsMap = new Map<string, string>();
+    for (const [key, value] of Object.entries(parsed.patterns as Record<string, string>)) {
+      patternsMap.set(key, value);
+    }
+
     return {
       path: configPath,
-      variables: parsed.variables,
-      patterns: parsed.patterns,
+      variables: varsMap,
+      patterns: patternsMap,
     };
+  }
+
+  public async getERBParseResult(filePath: string): Promise<string> {
+    const erbConfig = this.getERBConfig(path.dirname(filePath));
+    const [plugin, _] = this.getPluginConfig(path.dirname(filePath));
+    await plugin.parse(erbConfig);
+
+    const contents = await fs.promises.readFile(filePath, {
+      encoding: 'utf-8',
+    });
+
+    const variables = new Map<string, string>();
+    for (const [key, value] of Object.entries(erbConfig.variables)) {
+      variables.set(key, value);
+    }
+    for (const [key, value] of plugin.variables) {
+      variables.set(key, value);
+    }
+
+    return await parseERB(contents, variables);
   }
 }

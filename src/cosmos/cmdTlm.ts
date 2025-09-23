@@ -169,9 +169,13 @@ export class CmdFileParser {
     const fileContent = fs.readFileSync(this.path, 'utf-8');
 
     const erbValues = new Map<string, string>();
-    Object.assign(erbValues, resources.erb.variables);
+    for (const [key, value] of resources.erb.variables) {
+      erbValues.set(key, value);
+    }
     await resources.plugin.parse(resources.erb);
-    Object.assign(erbValues, resources.plugin.variables);
+    for (const [key, value] of resources.plugin.variables) {
+      erbValues.set(key, value);
+    }
 
     let erbResult = undefined;
     try {

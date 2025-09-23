@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import { PythonCompletionProvider } from './pythonCompletion';
 import { CosmosApiCompletionProvider } from './cosmosApiSuggestions';
 import { CosmosCmdTlmDB } from './cosmos/cmdTlm';
+import { CosmosProjectSearch } from './cosmos/config';
 
 const outputChannel = vscode.window.createOutputChannel('OpenC3 Scripting');
 
@@ -87,7 +88,27 @@ export async function activate(context: vscode.ExtensionContext) {
     new CosmosApiCompletionProvider()
   );
 
-  context.subscriptions.push(pythonProvider, cosmosApiProvider, cmdDBListener, tlmDBListener);
+  const showERBCmd = vscode.commands.registerCommand('openc3.showERB', async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return;
+    }
+
+    const document = editor.document;
+
+    const csearch = new CosmosProjectSearch(outputChannel);
+    const result = await csearch.getERBParseResult(document.uri.fsPath);
+
+    outputChannel.appendLine(`erb parse result: ${result}`);
+  });
+
+  context.subscriptions.push(
+    pythonProvider,
+    cosmosApiProvider,
+    cmdDBListener,
+    tlmDBListener,
+    showERBCmd
+  );
 }
 
 export function deactivate() {}
