@@ -37,6 +37,7 @@ enum Endianness {
 enum CmdParserState {
   CMD_DECL,
   CMD_BODY_PARAM,
+  CMD_PARAM_META,
 }
 
 export interface CmdArgument {
@@ -49,6 +50,7 @@ export interface CmdArgument {
   minVal: number;
   maxVal: number;
   defaultValue: any;
+  enumValues: Array<string> | undefined;
 }
 
 export interface CmdDefinition {
@@ -85,6 +87,8 @@ const cmdStringValRegex = /^"(.*?)"(?:\s+"(.*?)")?(?:\s+((?:BIG|LITTLE)_ENDIAN))
 
 const cmdParamArrayRegex =
   /^((?:APPEND_)(?:ARRAY_PARAMETER))\s+(\S+)\s+.*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
+const cmdArrayValRegex = /^(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
+const cmdStateRegex = /^STATE
 
 class ParserError extends Error {
   constructor(public message: string) {
@@ -175,6 +179,10 @@ export class CmdFileParser {
     this.currCmdParams = new Array<CmdArgument>();
   }
 
+  public getCommands(): Array<CmdDefinition> {
+    return this.commands;
+  }
+
   private syntaxError(line: string): ParserError {
     // Log to vscode console then return same message to throw
     const message = `Syntax error: '${line}'`;
@@ -243,6 +251,7 @@ export class CmdFileParser {
       minVal: 0,
       maxVal: 0,
       defaultValue: 0 as any,
+      enumValues: undefined,
     };
 
     if (ptype.includes('ID')) {
@@ -301,11 +310,22 @@ export class CmdFileParser {
         this.currCmdDecl?.endianness || (Endianness.LITTLE as Endianness) /* Default for now */,
       minVal: 0,
       maxVal: 0,
-      defaultValue: 0 as any,
+      defaultValue: new Array<any>(),
+      enumValues: undefined,
     };
 
-    const definitionMatch = remainder.match();
+    const definitionMatch = remainder.match(cmdArrayValRegex);
     if (definitionMatch) {
+      const [_, description, endiannessStr] = definitionMatch;
+      if (description !== undefined) {
+        arg.description = description;
+      }
+      if (endiannessStr !== undefined) {
+        arg.endianness = 'BIG_ENDIAN' === endiannessStr ? Endianness.BIG : Endianness.LITTLE;
+      }
+    }
+
+    return arg;
   }
 
   private searchParamDecl(line: string): CmdArgument | undefined {
@@ -314,7 +334,16 @@ export class CmdFileParser {
       return regularParam;
     }
 
+    const arrayParam = this.tryMatchArrayParam(line);
+    if (arrayParam !== undefined) {
+      return arrayParam;
+    }
+
     return undefined;
+  }
+
+  private updateParamMeta(line: string) {
+
   }
 
   private storeBufferedCmdDef(targetName: string) {
@@ -361,8 +390,22 @@ export class CmdFileParser {
         if (param === undefined) {
           break;
         }
+        this.parserState = CmdParserState.CMD_PARAM_META;
         this.outputChannel.appendLine(`Found command parameter ${JSON.stringify(param)}`);
         this.currCmdParams.push(param);
+        break;
+      case CmdParserState.CMD_PARAM_META:
+        if (line.match(/^.*PARAMETER.*$/)) {
+          this.parserState = CmdParserState.CMD_BODY_PARAM;
+          this.parseLine(line, targetName);
+          return;
+        }
+        if (line.startsWith(COMMAND_KEYWD)) {
+          this.parserState = CmdParserState.CMD_DECL;
+          this.parseLine(line, targetName);
+          return;
+        }
+        this.updateParamMeta(line);
         break;
       default:
         this.outputChannel.appendLine('default');
@@ -486,5 +529,7 @@ export class CosmosCmdTlmDB {
 
     const parser = new CmdFileParser(cmdFilePath, this.outputChannel);
     await parser.parse(resources);
+
+    this.outputChannel.appendLine(JSON.stringify(parser.getCommands()));
   }
 }
