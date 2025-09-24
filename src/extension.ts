@@ -56,6 +56,40 @@ async function preFlightChecks(): Promise<boolean> {
   return false;
 }
 
+async function createTypeStubs() {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) {
+    return;
+  }
+
+  const stubDir = path.join(workspaceFolder.uri.fsPath, '.vscode', 'pystubs');
+  if (!fs.existsSync(stubDir)) {
+    fs.mkdirSync(stubDir, { recursive: true });
+  }
+
+  const stubSrc = path.resolve(__dirname, 'cosmos_globals.pyi');
+  fs.copyFileSync(stubSrc, path.join(stubDir, '__builtins__.pyi'));
+}
+
+async function updateWorkspaceSettings() {
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (!workspaceFolder) {
+    return;
+  }
+
+  const cfgFilePath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'settings.json');
+  if (!fs.existsSync(cfgFilePath)) {
+    const vscodeDir = path.join(workspaceFolder.uri.fsPath, '.vscode');
+    fs.mkdirSync(vscodeDir, { recursive: true });
+    fs.writeFileSync(cfgFilePath, '{}');
+  }
+
+  const config = vscode.workspace.getConfiguration();
+  const settingPath = 'python.analysis.stubPath';
+  await config.update(settingPath, './.vscode/pystubs', vscode.ConfigurationTarget.Workspace);
+  vscode.window.showInformationMessage('COSMOS type definitions configured for this workspace.');
+}
+
 class ContentStore {
   private static content = new Map<string, string>();
 
@@ -126,6 +160,9 @@ export async function activate(context: vscode.ExtensionContext) {
     outputChannel.appendLine('Extension not starting, not a cosmos/openc3 project');
     return; /* Extension does not need to do anything */
   }
+
+  await createTypeStubs();
+  await updateWorkspaceSettings();
 
   const cmdTlmDB = new CosmosCmdTlmDB(outputChannel);
   cmdTlmDB.compileWorkspace();

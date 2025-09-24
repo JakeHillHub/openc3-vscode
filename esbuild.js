@@ -33,6 +33,8 @@ const erbRubySource = path.join(erbModulePath, 'ruby');
 const erbTemplatesDst = path.resolve('./dist/templates');
 const erbRubyDst = path.resolve('./dist/ruby');
 
+const pyStubsSource = path.resolve('./syntaxes/cosmos_globals.pyi');
+
 /**
  * @type {import('esbuild').Plugin}
  */
@@ -68,6 +70,7 @@ const esbuildERBPatcherPlugin = {
         console.log('[erb-patcher] Copying ERB non-module sources');
         fse.copy(erbTemplatesSource, erbTemplatesDst);
         fse.copy(erbRubySource, erbRubyDst);
+        fse.copy(pyStubsSource, './dist/cosmos_globals.pyi');
       }
     });
   },

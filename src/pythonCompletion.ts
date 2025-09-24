@@ -33,15 +33,48 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
     return undefined;
   }
 
+  private parseCmdArgs(argString: string): string[] {
+    const args: string[] = [];
+    let currentArg = '';
+    let braceDepth = 0;
+    let inDoubleQuotes = false;
+
+    for (const char of argString) {
+      if (char === '"') {
+        inDoubleQuotes = !inDoubleQuotes;
+      }
+
+      if (!inDoubleQuotes) {
+        if (char === '{') {
+          braceDepth++;
+        } else if (char === '}') {
+          braceDepth--;
+        }
+      }
+
+      if (char === ',' && braceDepth === 0 && !inDoubleQuotes) {
+        args.push(currentArg.trim());
+        currentArg = '';
+      } else {
+        currentArg += char;
+      }
+    }
+    args.push(currentArg.trim()); // Add the last argument
+
+    return args;
+  }
+
   private getCmdCompletions(linePrefix: string): vscode.ProviderResult<vscode.CompletionItem[]> {
     const argumentMatch = linePrefix.match(/.*cmd\((.*)\)?/);
     if (!argumentMatch) {
       return undefined;
     }
 
-    const args = argumentMatch[1].split(',');
+    // Use the robust parser instead of a simple split
+    const args = this.parseCmdArgs(argumentMatch[1]);
     const currentArgIndex = args.length - 1;
 
+    // This logic for the first two arguments remains the same
     if (currentArgIndex === 0) {
       return this.getCmdTargets();
     }
@@ -59,16 +92,34 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
       return undefined;
     }
 
-    const existingArgs = [];
-    for (const nextArg of args.slice(2)) {
-      const match = nextArg.match(/(\S+)=(?:\s+)?(.*)/);
-      if (!match) {
-        continue;
+    if (currentArgIndex >= 2) {
+      const paramsString = args[2] || '';
+      const existingArgs = [];
+
+      const keyRegex = /['"]([^'"]+)['"]\s*:/g;
+      let match;
+      while ((match = keyRegex.exec(paramsString)) !== null) {
+        existingArgs.push(match[1]);
       }
-      existingArgs.push(match[1]);
+
+      const parameterSuggestions = this.getParametersForCmd(targetName, commandName, existingArgs);
+      if (!parameterSuggestions) {
+        return undefined;
+      }
+
+      const dictionaryStarted = paramsString.trim().startsWith('{');
+      if (!dictionaryStarted) {
+        parameterSuggestions.forEach((item) => {
+          if (item.insertText instanceof vscode.SnippetString) {
+            item.insertText = new vscode.SnippetString('{' + item.insertText.value + '}');
+          }
+        });
+      }
+
+      return parameterSuggestions;
     }
 
-    return this.getParametersForCmd(targetName, commandName, existingArgs);
+    return undefined;
   }
 
   private getTlmCompletions(linePrefix: string): vscode.ProviderResult<vscode.CompletionItem[]> {
@@ -138,13 +189,13 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
 
       const choiceString = sortedKeys.map((key) => JSON.stringify(key)).join(',');
 
-      snippetString = `${arg.name}=\${1|${choiceString}|}`;
+      snippetString = `"${arg.name}": \${1|${choiceString}|}$0`;
     } else {
       if (arg.defaultValue === undefined || arg.defaultValue === null) {
-        snippetString = `${arg.name}=$1`;
+        snippetString = `"${arg.name}": $1$0`;
       } else {
         const formattedDefault = JSON.stringify(arg.defaultValue);
-        snippetString = `${arg.name}=\${1:${formattedDefault}}`;
+        snippetString = `"${arg.name}": \${1:${formattedDefault}}$0`;
       }
     }
 
@@ -156,7 +207,7 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
     targetName: string,
     commandName: string,
     existingArgs: Array<string>
-  ): vscode.ProviderResult<vscode.CompletionItem[]> {
+  ): vscode.CompletionItem[] | undefined | null {
     const commands = this.cmdTlmDB.getTargetCmds(targetName);
     if (!commands) {
       return undefined;
