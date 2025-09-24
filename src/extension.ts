@@ -130,7 +130,6 @@ export async function activate(context: vscode.ExtensionContext) {
   const cmdTlmDB = new CosmosCmdTlmDB(outputChannel);
   cmdTlmDB.compileWorkspace();
 
-  outputChannel.appendLine(`started`);
   outputChannel.show(true);
 
   /* Watchers */
@@ -150,8 +149,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const pythonProvider = vscode.languages.registerCompletionItemProvider(
     ['python'],
-    new PythonCompletionProvider(cmdTlmDB),
-    '('
+    new PythonCompletionProvider(cmdTlmDB, outputChannel),
+    '(',
+    ',',
+    ' '
   );
 
   const cosmosApiProvider = vscode.languages.registerCompletionItemProvider(

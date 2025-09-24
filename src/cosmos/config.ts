@@ -160,8 +160,6 @@ export class CosmosProjectSearch {
       return targetNames;
     }
 
-    this.outputChannel.appendLine(`plugin targets: ${JSON.stringify(pluginConfig.targets)}`);
-
     for (const [targetName, targetFolder] of pluginConfig.targets) {
       if (filePath.includes(targetFolder)) {
         targetNames.push(targetName);
@@ -223,7 +221,6 @@ export class CosmosProjectSearch {
     await plugin.parse(erbConfig);
 
     const derivedTargetNames = this.deriveTargetNames(plugin, pluginPath, filePath);
-    this.outputChannel.appendLine(JSON.stringify(derivedTargetNames));
 
     let contents = await fs.promises.readFile(filePath, {
       encoding: 'utf-8',

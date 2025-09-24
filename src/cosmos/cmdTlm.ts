@@ -50,7 +50,7 @@ export interface CmdArgument {
   minVal: number;
   maxVal: number;
   defaultValue: any;
-  enumValues: Array<string> | undefined;
+  enumValues: Map<string, any>;
 }
 
 export interface CmdDefinition {
@@ -88,7 +88,7 @@ const cmdStringValRegex = /^"(.*?)"(?:\s+"(.*?)")?(?:\s+((?:BIG|LITTLE)_ENDIAN))
 const cmdParamArrayRegex =
   /^((?:APPEND_)(?:ARRAY_PARAMETER))\s+(\S+)\s+.*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 const cmdArrayValRegex = /^(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
-const cmdStateRegex = /^STATE
+const cmdStateRegex = /^STATE\s+"?([^"]+)"?\s+((?:0x[0-9a-fA-F]+)|(?:\d+))$/;
 
 class ParserError extends Error {
   constructor(public message: string) {
@@ -156,27 +156,19 @@ function deriveConstNum(constVal: string): number {
 
 export class CmdFileParser {
   private path: string;
-  private parserState: CmdParserState;
-  private lineNumber: number;
   private outputChannel: vscode.OutputChannel;
+  private parserState: CmdParserState = CmdParserState.CMD_DECL;
+  private lineNumber: number = 0;
 
-  private commands: Array<CmdDefinition>;
+  private commands: Array<CmdDefinition> = new Array<CmdDefinition>();
 
   // Stash currently parsing command info in these private vars
-  private currCmdDecl: CmdDeclaration | undefined;
-  private currCmdParams: Array<CmdArgument>;
+  private currCmdDecl: CmdDeclaration | undefined = undefined;
+  private currCmdParams: Array<CmdArgument> = new Array<CmdArgument>();
 
   public constructor(filePath: string, outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
-
-    this.parserState = CmdParserState.CMD_DECL;
     this.path = filePath;
-
-    this.lineNumber = 0;
-
-    this.commands = new Array<CmdDefinition>();
-    this.currCmdDecl = undefined;
-    this.currCmdParams = new Array<CmdArgument>();
   }
 
   public getCommands(): Array<CmdDefinition> {
@@ -251,7 +243,7 @@ export class CmdFileParser {
       minVal: 0,
       maxVal: 0,
       defaultValue: 0 as any,
-      enumValues: undefined,
+      enumValues: new Map<string, any>(),
     };
 
     if (ptype.includes('ID')) {
@@ -311,7 +303,7 @@ export class CmdFileParser {
       minVal: 0,
       maxVal: 0,
       defaultValue: new Array<any>(),
-      enumValues: undefined,
+      enumValues: new Map<string, any>(),
     };
 
     const definitionMatch = remainder.match(cmdArrayValRegex);
@@ -342,8 +334,28 @@ export class CmdFileParser {
     return undefined;
   }
 
-  private updateParamMeta(line: string) {
+  private tryMatchState(line: string): [string | undefined, any] {
+    const stateMatch = line.match(cmdStateRegex);
+    if (!stateMatch) {
+      return [undefined, undefined];
+    }
 
+    const [_, key, value] = stateMatch;
+    return [key, value];
+  }
+
+  private updateParamMeta(line: string) {
+    const [stateKey, stateValue] = this.tryMatchState(line);
+    if (stateKey === undefined) {
+      return;
+    }
+
+    const currParam = this.currCmdParams.at(-1);
+    if (currParam === undefined) {
+      return;
+    }
+
+    currParam.enumValues.set(stateKey, stateValue);
   }
 
   private storeBufferedCmdDef(targetName: string) {
@@ -375,7 +387,6 @@ export class CmdFileParser {
         if (cmdDecl === undefined) {
           break;
         }
-        this.outputChannel.appendLine(`Found command declaration ${JSON.stringify(cmdDecl)}`);
         this.currCmdDecl = cmdDecl;
         this.parserState = CmdParserState.CMD_BODY_PARAM;
         break;
@@ -391,7 +402,6 @@ export class CmdFileParser {
           break;
         }
         this.parserState = CmdParserState.CMD_PARAM_META;
-        this.outputChannel.appendLine(`Found command parameter ${JSON.stringify(param)}`);
         this.currCmdParams.push(param);
         break;
       case CmdParserState.CMD_PARAM_META:
@@ -409,6 +419,7 @@ export class CmdFileParser {
         break;
       default:
         this.outputChannel.appendLine('default');
+        break;
     }
   }
 
@@ -467,8 +478,6 @@ export class CmdFileParser {
     for (const targetName of resources.targets) {
       await this.parseTarget(fileContents, resources, targetName);
     }
-
-    this.outputChannel.appendLine(JSON.stringify(this.commands));
   }
 }
 
@@ -481,30 +490,49 @@ interface CmdTlmResources {
 }
 
 export class CosmosCmdTlmDB {
-  private cmdMap: Map<string, CmdDefinition[]> = new Map();
-  private tlmMap: Map<string, TlmDefinition[]> = new Map();
+  private cmdMap: Map<string, Map<string, CmdDefinition>>;
+  private tlmMap: Map<string, Map<string, CmdDefinition>>;
   private outputChannel: vscode.OutputChannel;
 
   public constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
+    this.cmdMap = new Map<string, Map<string, CmdDefinition>>();
+    this.tlmMap = new Map<string, Map<string, CmdDefinition>>();
   }
 
-  public getCommands(target: string): CmdDefinition[] | undefined {
-    return this.cmdMap.get(target.toUpperCase());
+  private getMapKeys(map: Map<string, any>): Array<string> {
+    const keys = new Array<string>();
+    for (const [key, _] of map) {
+      keys.push(key);
+    }
+    return keys;
   }
 
-  public getTlm(target: string): TlmDefinition[] | undefined {
-    return this.tlmMap.get(target.toUpperCase());
+  public getCmdTargets(): Array<string> {
+    return this.getMapKeys(this.cmdMap);
   }
 
-  public async compileWorkspace() {
-    this.outputChannel.appendLine('Scanning workspace for cmd_tlm folders...');
-    // Placeholder for file system scanning logic
+  public getTlmTargets(): Array<string> {
+    return this.getMapKeys(this.tlmMap);
+  }
+
+  public getTargetCmds(target: string): Map<string, CmdDefinition> {
+    const targetCmds = this.cmdMap.get(target);
+    if (targetCmds === undefined) {
+      return new Map<string, CmdDefinition>();
+    }
+    return targetCmds;
+  }
+
+  public getTargetTlmIds(target: string): Array<string> {
+    const targetTlm = this.tlmMap.get(target);
+    if (targetTlm === undefined) {
+      return new Array<string>();
+    }
+    return this.getMapKeys(targetTlm);
   }
 
   private async getCmdTlmFileResources(filePath: string): Promise<CmdTlmResources> {
-    this.outputChannel.appendLine(`Compiling resources for cmd/tlm def file ${filePath}`);
-
     const cSearch = new CosmosProjectSearch(this.outputChannel);
     const erbConfig = cSearch.getERBConfig(path.dirname(filePath)); /* Can fail gracefully */
 
@@ -525,11 +553,39 @@ export class CosmosCmdTlmDB {
   public async compileCmdFile(cmdFilePath: string) {
     const resources = await this.getCmdTlmFileResources(cmdFilePath);
 
-    this.outputChannel.appendLine(`resources: ${JSON.stringify(resources)}`);
-
     const parser = new CmdFileParser(cmdFilePath, this.outputChannel);
     await parser.parse(resources);
 
-    this.outputChannel.appendLine(JSON.stringify(parser.getCommands()));
+    for (const cmd of parser.getCommands()) {
+      let targetCmds = this.cmdMap.get(cmd.target);
+      if (targetCmds === undefined) {
+        this.cmdMap.set(cmd.target, new Map<string, CmdDefinition>());
+        targetCmds = this.cmdMap.get(cmd.target);
+      }
+      targetCmds?.set(cmd.id, cmd);
+    }
+  }
+
+  public async compileWorkspace() {
+    this.outputChannel.appendLine('Scanning workspace for cmd_tlm folders...');
+    // Search for all files named 'cmd.txt' in the workspace.
+    const fileUris = await vscode.workspace.findFiles('**/cmd.txt');
+
+    if (fileUris.length === 0) {
+      this.outputChannel.appendLine('No .cmd.txt files found in the workspace.');
+      return;
+    }
+
+    this.outputChannel.appendLine(`Found ${fileUris.length} command files.`);
+    for (const fileUri of fileUris) {
+      try {
+        this.outputChannel.appendLine(`Compiling: ${fileUri.fsPath}`);
+        await this.compileCmdFile(fileUri.fsPath);
+      } catch (error) {
+        this.outputChannel.appendLine(`Error compiling ${fileUri.fsPath}: ${error}`);
+      }
+    }
+
+    this.outputChannel.appendLine('Compiling workspace complete');
   }
 }
