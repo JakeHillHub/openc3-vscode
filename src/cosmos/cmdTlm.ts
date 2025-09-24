@@ -12,7 +12,7 @@ import {
 
 const COMMAND_KEYWD = 'COMMAND';
 
-enum CmdParamType {
+export enum CmdParamType {
   PARAMETER,
   ID_PARAMETER,
   ARRAY_PARAMETER,
@@ -88,7 +88,7 @@ const cmdStringValRegex = /^"(.*?)"(?:\s+"(.*?)")?(?:\s+((?:BIG|LITTLE)_ENDIAN))
 const cmdParamArrayRegex =
   /^((?:APPEND_)(?:ARRAY_PARAMETER))\s+(\S+)\s+.*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 const cmdArrayValRegex = /^(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
-const cmdStateRegex = /^STATE\s+"?([^"]+)"?\s+((?:0x[0-9a-fA-F]+)|(?:\d+))$/;
+const cmdStateRegex = /^STATE\s+"?([^"]+)"?\s+((?:0x[0-9a-fA-F]+)|(?:\d+))/;
 
 class ParserError extends Error {
   constructor(public message: string) {
@@ -96,6 +96,19 @@ class ParserError extends Error {
     this.name = this.constructor.name;
     Object.setPrototypeOf(this, new.target.prototype);
   }
+}
+
+export function argHasEnum(arg: CmdArgument): boolean {
+  return arg.enumValues.size !== 0;
+}
+
+export function getArgEnumKey(arg: CmdArgument, value: any) {
+  for (const [key, val] of arg.enumValues) {
+    if (val === value) {
+      return key;
+    }
+  }
+  return undefined;
 }
 
 function deriveConstNum(constVal: string): number {
@@ -355,6 +368,11 @@ export class CmdFileParser {
       return;
     }
 
+    const parsedInt = parseInt(stateValue);
+    if (!isNaN(parsedInt)) {
+      currParam.enumValues.set(stateKey, parsedInt);
+      return;
+    }
     currParam.enumValues.set(stateKey, stateValue);
   }
 
@@ -405,12 +423,13 @@ export class CmdFileParser {
         this.currCmdParams.push(param);
         break;
       case CmdParserState.CMD_PARAM_META:
-        if (line.match(/^.*PARAMETER.*$/)) {
+        if (line.includes('PARAMETER')) {
           this.parserState = CmdParserState.CMD_BODY_PARAM;
           this.parseLine(line, targetName);
           return;
         }
         if (line.startsWith(COMMAND_KEYWD)) {
+          this.storeBufferedCmdDef(targetName);
           this.parserState = CmdParserState.CMD_DECL;
           this.parseLine(line, targetName);
           return;
@@ -418,7 +437,6 @@ export class CmdFileParser {
         this.updateParamMeta(line);
         break;
       default:
-        this.outputChannel.appendLine('default');
         break;
     }
   }
