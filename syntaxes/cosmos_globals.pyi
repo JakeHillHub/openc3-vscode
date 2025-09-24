@@ -5,9 +5,58 @@ from typing import Any, overload
 from typing import Any, overload
 
 # Define the 'cmd' function signature
-def cmd(target: str, command: str, **kwargs: Any) -> Any:
+def cmd(target: str, command: str, params: dict[str, Any]) -> None:
     """
     Sends a command through the COSMOS system.
+    """
+    ...
+
+# Define the 'cmd_no_range_check' function signature
+def cmd_no_range_check(target: str, command: str, params: dict[str, Any]) -> None:
+    """
+    Sends a command through the COSMOS system with no range check.
+    """
+    ...
+
+# Define the 'cmd_no_hazardous_check' function signature
+def cmd_no_hazardous_check(target: str, command: str, params: dict[str, Any]) -> None:
+    """
+    Sends a command through the COSMOS system with no hazardous check.
+    """
+    ...
+
+# Define the 'cmd_no_checks' function signature
+def cmd_no_checks(target: str, command: str, params: dict[str, Any]) -> None:
+    """
+    Sends a command through the COSMOS system with no checks.
+    """
+    ...
+
+# Define the 'cmd_raw' function signature
+def cmd_raw(target: str, command: str, params: dict[str, Any]) -> None:
+    """
+    Sends a raw command through the COSMOS system.
+    """
+    ...
+
+# Define the 'cmd_raw_no_range_check' function signature
+def cmd_raw_no_range_check(target: str, command: str, params: dict[str, Any]) -> None:
+    """
+    Sends a raw command through the COSMOS system with no range check.
+    """
+    ...
+
+# Define the 'cmd_raw_no_hazardous_check' function signature
+def cmd_raw_no_hazardous_check(target: str, command: str, params: dict[str, Any]) -> None:
+    """
+    Sends a raw command through the COSMOS system with no hazardous check.
+    """
+    ...
+
+# Define the 'cmd_raw_no_checks' function signature
+def cmd_raw_no_checks(target: str, command: str, params: dict[str, Any]) -> None:
+    """
+    Sends a raw command through the COSMOS system with no checks.
     """
     ...
 

@@ -3,7 +3,6 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { PythonCompletionProvider } from './pythonCompletion';
-import { CosmosApiCompletionProvider } from './cosmosApiSuggestions';
 import { CosmosCmdTlmDB } from './cosmos/cmdTlm';
 import { CosmosProjectSearch } from './cosmos/config';
 
@@ -192,11 +191,6 @@ export async function activate(context: vscode.ExtensionContext) {
     ' '
   );
 
-  const cosmosApiProvider = vscode.languages.registerCompletionItemProvider(
-    ['python', 'ruby'],
-    new CosmosApiCompletionProvider()
-  );
-
   const showERBCmd = vscode.commands.registerCommand('openc3.showERB', async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
@@ -210,7 +204,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     pythonProvider,
-    cosmosApiProvider,
     cmdDBListener,
     tlmDBListener,
     pluginListener,
