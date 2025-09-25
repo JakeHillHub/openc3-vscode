@@ -35,6 +35,10 @@
     },
     {
       "name": "entity.name.function.openc3-cosmos",
+      "match": "\\b(APPEND_)?(ID_)?(ARRAY_)?ITEM\\b"
+    },
+    {
+      "name": "entity.name.function.openc3-cosmos",
       "match": "\\b(PROTOCOL|MAP_TARGET|OPTION)\\b"
     },
     {

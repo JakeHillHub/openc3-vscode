@@ -7,14 +7,25 @@ from typing import Any, overload, List, Dict, Tuple, Optional, IO, Iterator, Typ
 
 # --- Commanding ---
 
-def cmd(target: str, command: str, params: Dict[str, Any]) -> None:
+def cmd(
+    target: str,
+    command: str,
+    params: Dict[str, Any],
+    timeout: int = 5,
+    log_message: bool = False,
+    validate: bool = True,
+) -> None:
     """
-    Sends a command through the COSMOS system.
+    Sends a command through the COSMOS system with optional settings.
 
     Args:
         target (str): The name of the target to send the command to.
         command (str): The name of the command to send.
-        params (Dict[str, Any]): A dictionary of command parameters.
+        params (Dict[str, Any]): A dictionary of command parameters and their values.
+        timeout (int, optional): The maximum time to wait for a response in seconds. Defaults to 5.
+        log_message (bool, optional): Whether to log the command message. Defaults to False.
+        validate (bool, optional): Whether to validate the command parameters before sending.
+                                   Defaults to True.
 
     Returns:
         None: This function does not return a value.

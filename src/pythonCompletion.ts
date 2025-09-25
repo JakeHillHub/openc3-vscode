@@ -5,10 +5,44 @@ import {
   CmdArgument,
   argHasEnum,
   getArgEnumKey,
+  TlmFieldType,
 } from './cosmos/cmdTlm';
+import { json } from 'stream/consumers';
 
+/* Most commands */
 const cmdPrefixRegex =
-  /.*(?:cmd|cmd_no_range_check|cmd_no_hazardous_check|cmd_no_checks|cmd_raw|cmd_raw_no_range_check|cmd_raw_no_hazardous_check|cmd_raw_no_checks)\((.*)\)?/;
+  /.*?(?:cmd|cmd_no_range_check|cmd_no_hazardous_check|cmd_no_checks|cmd_raw|cmd_raw_no_range_check|cmd_raw_no_hazardous_check|cmd_raw_no_checks)\((.*)\)?/;
+
+/* Specific requests for a specific field within a packet and target */
+const tlmPacketFieldPrefixRegex = /.*?(?:tlm|tlm_raw|tlm_formatted|tlm_with_units)\((.*)\)?/;
+
+function stripQuotes(str: string): string {
+  return str.trim().replace(/['"]/g, '');
+}
+
+function newFieldCompletion(label: string, text: string, detail: string): vscode.CompletionItem {
+  const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Field);
+  item.insertText = text;
+  item.detail = detail;
+  return item;
+}
+
+function newMethodCompletion(label: string, text: string, detail: string): vscode.CompletionItem {
+  const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Method);
+  item.insertText = text;
+  item.detail = detail;
+  return item;
+}
+
+function newKwargCompletion(label: string, key: string, value: any): vscode.CompletionItem {
+  const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Field);
+  item.detail = value;
+
+  let formattedValue = JSON.stringify(value);
+  const snippetString = `${key}=\${1:${formattedValue}}$0`;
+  item.insertText = new vscode.SnippetString(snippetString);
+  return item;
+}
 
 export class PythonCompletionProvider implements vscode.CompletionItemProvider {
   private cmdTlmDB: CosmosCmdTlmDB;
@@ -30,14 +64,22 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
     const cmdMatch = linePrefix.match(cmdPrefixRegex);
     if (cmdMatch) {
       return this.getCmdCompletions(linePrefix);
-    } else if (linePrefix.includes('tlm(')) {
-      return this.getTlmCompletions(linePrefix);
+    }
+
+    const tlmPacketOnlyMatch = linePrefix.match(tlmPacketFieldPrefixRegex);
+    if (tlmPacketOnlyMatch) {
+      return this.getTlmPacketFieldCompletions(linePrefix);
+    }
+
+    const credMatch = linePrefix.match(/.*?(?:extension_credit)\((.*)\)?/);
+    if (credMatch) {
+      return [newFieldCompletion('Created By', '"Jake Hill"', 'September 2025')];
     }
 
     return undefined;
   }
 
-  private parseCmdArgs(argString: string): string[] {
+  private parseArgs(argString: string): string[] {
     const args: string[] = [];
     let currentArg = '';
     let braceDepth = 0;
@@ -74,79 +116,105 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
       return undefined;
     }
 
-    const args = this.parseCmdArgs(argumentMatch[1]);
+    const args = this.parseArgs(argumentMatch[1]);
     const currentArgIndex = args.length - 1;
 
-    if (currentArgIndex === 0) {
-      return this.getCmdTargets();
-    }
+    let targetName = undefined;
+    let commandName = undefined;
 
-    const targetName = args[0].trim().replace(/['"]/g, '');
-    if (!targetName) {
-      return undefined;
-    }
-    if (currentArgIndex === 1) {
-      return this.getCommandsForTarget(targetName);
-    }
+    switch (currentArgIndex) {
+      case 0:
+        return this.getCmdTargets();
+      case 1:
+        targetName = stripQuotes(args[0]);
+        return this.getCommandsForTarget(targetName);
+      case 2:
+        targetName = stripQuotes(args[0]);
+        commandName = stripQuotes(args[1]);
 
-    const commandName = args[1].trim().replace(/['"]/g, '');
-    if (!commandName) {
-      return undefined;
-    }
+        const paramsString = args[2] || '';
+        const existingArgs = [];
 
-    if (currentArgIndex >= 2) {
-      const paramsString = args[2] || '';
-      const existingArgs = [];
+        const keyRegex = /['"]([^'"]+)['"]\s*:/g;
+        let match;
+        while ((match = keyRegex.exec(paramsString)) !== null) {
+          existingArgs.push(match[1]);
+        }
 
-      const keyRegex = /['"]([^'"]+)['"]\s*:/g;
-      let match;
-      while ((match = keyRegex.exec(paramsString)) !== null) {
-        existingArgs.push(match[1]);
-      }
+        const parameterSuggestions = this.getParametersForCmd(
+          targetName,
+          commandName,
+          existingArgs
+        );
+        if (!parameterSuggestions || parameterSuggestions.length === 0) {
+          return undefined;
+        }
 
-      const parameterSuggestions = this.getParametersForCmd(targetName, commandName, existingArgs);
-      if (!parameterSuggestions) {
-        return undefined;
-      }
+        const dictionaryStarted = paramsString.trim().startsWith('{');
+        if (!dictionaryStarted) {
+          parameterSuggestions.forEach((item) => {
+            if (item.insertText instanceof vscode.SnippetString) {
+              item.insertText = new vscode.SnippetString('{' + item.insertText.value + '}');
+            }
+          });
+        }
 
-      const dictionaryStarted = paramsString.trim().startsWith('{');
-      if (!dictionaryStarted) {
-        parameterSuggestions.forEach((item) => {
-          if (item.insertText instanceof vscode.SnippetString) {
-            item.insertText = new vscode.SnippetString('{' + item.insertText.value + '}');
-          }
-        });
-      }
-
-      return parameterSuggestions;
+        return parameterSuggestions;
     }
 
     return undefined;
   }
 
-  private getTlmCompletions(linePrefix: string): vscode.ProviderResult<vscode.CompletionItem[]> {
-    const argumentMatch = linePrefix.match(/tlm\((.*)\)/);
+  private getTlmPacketFieldCompletions(
+    linePrefix: string
+  ): vscode.ProviderResult<vscode.CompletionItem[]> {
+    const argumentMatch = linePrefix.match(tlmPacketFieldPrefixRegex);
     if (!argumentMatch) {
       return undefined;
     }
 
-    const args = argumentMatch[1].split(',');
+    const args = this.parseArgs(argumentMatch[1]);
     const currentArgIndex = args.length - 1;
 
-    if (currentArgIndex === 0) {
-      // Suggest tlm packet IDs
-    }
+    let targetName = undefined;
+    let packetName = undefined;
 
-    return undefined;
+    switch (currentArgIndex) {
+      case 0:
+        return this.getTlmTargets();
+      case 1:
+        targetName = stripQuotes(args[0]);
+        return this.getPacketsForTarget(targetName);
+      case 2:
+        targetName = stripQuotes(args[0]);
+        packetName = stripQuotes(args[1]);
+        return this.getFieldsForPacket(targetName, packetName);
+      case 3:
+        const tlmOnly = /.*?tlm\(.*?/; /* Only allow the tlm() cmd, not tlm_raw etc. */
+        if (linePrefix.match(tlmOnly)) {
+          return this.getFieldTypeCompletions();
+        }
+      default:
+        return undefined;
+    }
   }
 
   private getCmdTargets(): vscode.CompletionItem[] {
     const targetCompletionItems = [];
     for (const targetName of this.cmdTlmDB.getCmdTargets()) {
-      const item = new vscode.CompletionItem(targetName, vscode.CompletionItemKind.Field);
-      item.insertText = `"${targetName}"`;
-      item.detail = `COSMOS Target ${targetName}`;
-      targetCompletionItems.push(item);
+      targetCompletionItems.push(
+        newFieldCompletion(targetName, `"${targetName}"`, `COSMOS Target ${targetName}`)
+      );
+    }
+    return targetCompletionItems;
+  }
+
+  private getTlmTargets(): vscode.CompletionItem[] {
+    const targetCompletionItems = [];
+    for (const targetName of this.cmdTlmDB.getTlmTargets()) {
+      targetCompletionItems.push(
+        newFieldCompletion(targetName, `"${targetName}"`, `COSMOS Target ${targetName}`)
+      );
     }
     return targetCompletionItems;
   }
@@ -159,13 +227,57 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
 
     const commandCompletionItems = [];
     for (const [cmdId, cmdDefinition] of commands.entries()) {
-      const item = new vscode.CompletionItem(cmdId, vscode.CompletionItemKind.Method);
-      item.insertText = `"${cmdId}"`;
-      item.detail = `${cmdDefinition.target}: ${cmdId}`;
-      item.documentation = cmdDefinition.description;
-      commandCompletionItems.push(item);
+      commandCompletionItems.push(
+        newMethodCompletion(cmdId, `"${cmdId}"`, cmdDefinition.description)
+      );
     }
     return commandCompletionItems;
+  }
+
+  private getPacketsForTarget(targetName: string | undefined): vscode.CompletionItem[] {
+    if (targetName === undefined) {
+      return [];
+    }
+
+    const packets = this.cmdTlmDB.getTargetPackets(targetName);
+    if (!packets) {
+      return [];
+    }
+
+    const packetCompletionItems = [];
+    for (const [packetId, packetDefinition] of packets.entries()) {
+      packetCompletionItems.push(
+        newMethodCompletion(packetId, `"${packetId}"`, packetDefinition.description)
+      );
+    }
+    return packetCompletionItems;
+  }
+
+  private getFieldsForPacket(
+    targetName: string | undefined,
+    packetName: string | undefined
+  ): vscode.CompletionItem[] {
+    if (targetName === undefined || packetName === undefined) {
+      return [];
+    }
+
+    const packet = this.cmdTlmDB.getTargetPacket(targetName, packetName);
+    if (packet === undefined) {
+      return [];
+    }
+
+    const fieldCompletionItems = [];
+    for (const field of packet.fields) {
+      if (field.fieldType === TlmFieldType.ID_ITEM) {
+        continue;
+      }
+
+      const item = new vscode.CompletionItem(field.name, vscode.CompletionItemKind.Method);
+      item.insertText = `"${field.name}"`;
+      item.detail = field.description;
+      fieldCompletionItems.push(item);
+    }
+    return fieldCompletionItems;
   }
 
   private constructArgItemSuggestion(arg: CmdArgument): vscode.CompletionItem {
@@ -239,5 +351,14 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
     }
 
     return parameterCompletionItems;
+  }
+
+  private getFieldTypeCompletions(): vscode.CompletionItem[] {
+    const options = ['RAW', 'CONVERTED', 'FORMATTED', 'WITH_UNITS'];
+    const typeCompletionItems = [];
+    for (const opt of options) {
+      typeCompletionItems.push(newKwargCompletion(opt, 'type', opt));
+    }
+    return typeCompletionItems;
   }
 }

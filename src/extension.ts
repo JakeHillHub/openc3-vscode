@@ -106,7 +106,6 @@ class ContentStore {
 }
 
 class ParsedContentProvider implements vscode.TextDocumentContentProvider {
-  // This is the custom URI scheme
   public static readonly scheme = 'parsed-result';
 
   private _onDidChange = new vscode.EventEmitter<vscode.Uri>();

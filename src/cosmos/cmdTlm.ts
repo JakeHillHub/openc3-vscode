@@ -544,7 +544,7 @@ export interface TlmDefinition {
   target: string;
   id: string;
   description: string;
-  arguments: Array<TlmField>;
+  fields: Array<TlmField>;
 }
 
 interface TlmDeclaration {
@@ -720,11 +720,11 @@ export class TlmFileParser {
       target: targetName,
       id: this.currTlmDecl.name,
       description: this.currTlmDecl.description || '',
-      arguments: new Array<TlmField>(),
+      fields: new Array<TlmField>(),
     };
 
     for (const param of this.currTlmFields) {
-      tlmDefinition.arguments.push(param);
+      tlmDefinition.fields.push(param);
     }
 
     this.packets.push(tlmDefinition);
@@ -858,20 +858,29 @@ export class CosmosCmdTlmDB {
     return this.getMapKeys(this.tlmMap);
   }
 
-  public getTargetCmds(target: string): Map<string, CmdDefinition> {
-    const targetCmds = this.cmdMap.get(target);
+  public getTargetCmds(targetName: string): Map<string, CmdDefinition> {
+    const targetCmds = this.cmdMap.get(targetName);
     if (targetCmds === undefined) {
       return new Map<string, CmdDefinition>();
     }
     return targetCmds;
   }
 
-  public getTargetTlmIds(target: string): Array<string> {
-    const targetTlm = this.tlmMap.get(target);
-    if (targetTlm === undefined) {
-      return new Array<string>();
+  public getTargetPackets(targetName: string): Map<string, TlmDefinition> {
+    const targetPackets = this.tlmMap.get(targetName);
+    if (targetPackets === undefined) {
+      return new Map<string, TlmDefinition>();
     }
-    return this.getMapKeys(targetTlm);
+    return targetPackets;
+  }
+
+  public getTargetPacket(targetName: string, packetName: string): TlmDefinition | undefined {
+    const targetPackets = this.tlmMap.get(targetName);
+    const packet = targetPackets?.get(packetName);
+    if (packet === undefined) {
+      return undefined;
+    }
+    return packet;
   }
 
   private async getCmdTlmFileResources(filePath: string): Promise<CmdTlmResources> {
