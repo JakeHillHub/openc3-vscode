@@ -47,6 +47,10 @@ export class CosmosPluginConfig {
     this.targets = new Map<string, string>();
   }
 
+  private sanitizeVar(val: any): string {
+    return val.trim().replace(/^['"`]+|['"`]+$/g, '');
+  }
+
   private async loadFilePatterns(
     path: string,
     patternReplace: Map<string, string>
@@ -65,7 +69,7 @@ export class CosmosPluginConfig {
       const varMatch = line.match(pluginVarExpr);
       if (varMatch) {
         const [_, name, value] = varMatch;
-        this.variables.set(name, value);
+        this.variables.set(name, this.sanitizeVar(value));
         continue;
       }
     }
@@ -145,6 +149,21 @@ export class CosmosProjectSearch {
     }
 
     return undefined;
+  }
+
+  public async getAllTargetDirs(
+    excludePattern: string,
+    transform: (dir: string) => string
+  ): Promise<Set<string>> {
+    const targetDirs = new Set<string>();
+
+    const targetFiles = await vscode.workspace.findFiles('**/target.txt', excludePattern);
+    for (const targetFile of targetFiles) {
+      const targetDir = path.dirname(targetFile.fsPath);
+      targetDirs.add(transform(targetDir));
+    }
+
+    return targetDirs;
   }
 
   public deriveTargetNames(

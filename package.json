@@ -60,6 +60,19 @@
           "when": "resourceExtname == .txt && (resourceFilename == cmd.txt || resourceFilename == tlm.txt || resourceFilename == plugin.txt || resourceFilename == target.txt)"
         }
       ]
+    },
+    "configuration": {
+      "title": "openc3",
+      "properties": {
+        "openc3.ignoreDirectories": {
+          "type": "array",
+          "default": [],
+          "description": "A list of directory names to ignore",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     }
   },
   "scripts": {

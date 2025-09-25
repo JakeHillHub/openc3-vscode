@@ -933,9 +933,9 @@ export class CosmosCmdTlmDB {
     }
   }
 
-  private async compileCmds() {
+  private async compileCmds(excludePattern: string) {
     // Search for all files named 'cmd.txt' in the workspace.
-    const fileUris = await vscode.workspace.findFiles('**/cmd.txt');
+    const fileUris = await vscode.workspace.findFiles('**/cmd.txt', excludePattern);
 
     if (fileUris.length === 0) {
       this.outputChannel.appendLine('No .cmd.txt files found in the workspace.');
@@ -953,9 +953,9 @@ export class CosmosCmdTlmDB {
     }
   }
 
-  private async compileTlm() {
+  private async compileTlm(excludePattern: string) {
     // Search for all files named 'cmd.txt' in the workspace.
-    const fileUris = await vscode.workspace.findFiles('**/tlm.txt');
+    const fileUris = await vscode.workspace.findFiles('**/tlm.txt', excludePattern);
 
     if (fileUris.length === 0) {
       this.outputChannel.appendLine('No .tlm.txt files found in the workspace.');
@@ -973,10 +973,10 @@ export class CosmosCmdTlmDB {
     }
   }
 
-  public async compileWorkspace() {
+  public async compileWorkspace(excludePattern: string) {
     this.outputChannel.appendLine('Scanning workspace for cmd/tlm definitions');
-    await this.compileCmds();
-    await this.compileTlm();
+    await this.compileCmds(excludePattern);
+    await this.compileTlm(excludePattern);
     this.outputChannel.appendLine('Compiling workspace complete');
   }
 }

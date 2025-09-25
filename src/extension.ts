@@ -8,50 +8,30 @@ import { CosmosProjectSearch } from './cosmos/config';
 
 const outputChannel = vscode.window.createOutputChannel('OpenC3 Scripting');
 
-async function filenamesExist(dir: string, options: string[]): Promise<boolean> {
-  async function search(currentDir: string): Promise<boolean> {
-    const entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory()) {
-        await search(fullPath); // Recursively search subdirectories
-      }
-
-      for (const option of options) {
-        if (entry.name === option) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  return await search(dir);
-}
-
-async function preFlightChecks(): Promise<boolean> {
+async function preFlightChecks(excludePattern: string): Promise<boolean> {
   /* Verify that this extension should actually activate based on cosmos project commonly found files */
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
     return false; /* No directory opened, nothing to do */
   }
 
-  for (const folder of workspaceFolders) {
-    if (
-      await filenamesExist(folder.uri.fsPath, [
-        'cmd.txt' /* If none of these are present, probably not a cosmos project */,
-        'tlm.txt',
-        'openc3-erb.json',
-        'plugin.txt',
-      ])
-    ) {
-      return true;
-    }
+  const plugins = await vscode.workspace.findFiles('**/plugin.txt', excludePattern);
+  const cmdDefs = await vscode.workspace.findFiles('**/cmd.txt', excludePattern);
+  const tlmDefs = await vscode.workspace.findFiles('**/tlm.txt', excludePattern);
+  const targets = await vscode.workspace.findFiles('**/target.txt', excludePattern);
+
+  if (
+    plugins.length !== 0 &&
+    cmdDefs.length !== 0 &&
+    tlmDefs.length !== 0 &&
+    targets.length !== 0
+  ) {
+    return true;
   }
 
+  vscode.window.showInformationMessage(
+    'OpenC3 extension deactivated, determined workspace to not be a cosmos/openc3 project.'
+  );
   return false;
 }
 
@@ -63,14 +43,14 @@ async function createTypeStubs() {
 
   const stubDir = path.join(workspaceFolder.uri.fsPath, '.vscode', 'pystubs');
   if (!fs.existsSync(stubDir)) {
-    fs.mkdirSync(stubDir, { recursive: true });
+    await fs.promises.mkdir(stubDir, { recursive: true });
   }
 
-  const stubSrc = path.resolve(__dirname, 'cosmos_globals.pyi');
-  fs.copyFileSync(stubSrc, path.join(stubDir, '__builtins__.pyi'));
+  const stubSrc = path.resolve(__dirname, 'pystubs');
+  await fs.promises.cp(stubSrc, stubDir, { recursive: true });
 }
 
-async function updateWorkspaceSettings() {
+async function updateWorkspaceSettings(excludePattern: string) {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) {
     return;
@@ -84,9 +64,33 @@ async function updateWorkspaceSettings() {
   }
 
   const config = vscode.workspace.getConfiguration();
+  /* Add stubs path */
   const settingPath = 'python.analysis.stubPath';
   await config.update(settingPath, './.vscode/pystubs', vscode.ConfigurationTarget.Workspace);
-  vscode.window.showInformationMessage('COSMOS type definitions configured for this workspace.');
+
+  /* Disable missing source for stubs */
+  const ignoreMissingSourcePath = 'python.analysis.diagnosticSeverityOverrides';
+  await config.update(ignoreMissingSourcePath, {
+    reportMissingModuleSource: 'none',
+  });
+
+  /* Add plugin roots for load_utility */
+  const csearch = new CosmosProjectSearch(outputChannel);
+  const targetDirs = await csearch.getAllTargetDirs(excludePattern, (targPath: string) => {
+    return `./${path.dirname(vscode.workspace.asRelativePath(targPath))}`;
+  });
+
+  const configDirs = [];
+  for (const targetDir of targetDirs) {
+    configDirs.push(targetDir);
+  }
+
+  const extraPathsSourcePath = 'python.analysis.extraPaths';
+  await config.update(extraPathsSourcePath, configDirs, vscode.ConfigurationTarget.Workspace);
+
+  vscode.window.showInformationMessage(
+    'OpenC3 extension configured pylance type definitions this workspace.'
+  );
 }
 
 class ContentStore {
@@ -153,40 +157,105 @@ async function showParsedERBIfOpen(filePath: string) {
   }
 }
 
+const alwaysIgnore = ['node_modules', '.git', '.vscode'];
+function getIgnoredDirectories(): string[] {
+  const configuration = vscode.workspace.getConfiguration('openc3');
+  const ignoredDirs = configuration.get<string[]>('ignoreDirectories', []);
+  for (const dir of alwaysIgnore) {
+    ignoredDirs.push(dir);
+  }
+  return ignoredDirs;
+}
+
+function createIgnoreGlobPattern(ignoredDirs: string[]): string {
+  if (ignoredDirs.length === 0) {
+    return '';
+  }
+
+  return `**/{${ignoredDirs.join(',')}}/**`;
+}
+
+function isPathIgnored(fsPath: string, ignoredDirs: string[]): boolean {
+  if (ignoredDirs.length === 0) {
+    return false;
+  }
+
+  const normalizedPath = path.normalize(fsPath);
+  return ignoredDirs.some((dir) => {
+    const pattern = `${path.sep}${dir}${path.sep}`;
+    return normalizedPath.includes(pattern);
+  });
+}
+
 export async function activate(context: vscode.ExtensionContext) {
-  if (!(await preFlightChecks())) {
+  const ignoredDirs = getIgnoredDirectories();
+  const excludePattern = createIgnoreGlobPattern(ignoredDirs);
+
+  if (!(await preFlightChecks(excludePattern))) {
     outputChannel.appendLine('Extension not starting, not a cosmos/openc3 project');
     return; /* Extension does not need to do anything */
   }
 
   await createTypeStubs();
-  await updateWorkspaceSettings();
+  await updateWorkspaceSettings(excludePattern);
 
   const cmdTlmDB = new CosmosCmdTlmDB(outputChannel);
-  cmdTlmDB.compileWorkspace();
-
-  outputChannel.show(true);
+  cmdTlmDB.compileWorkspace(excludePattern);
 
   /* Watchers */
   const cmdDBListener = vscode.workspace.createFileSystemWatcher('**/cmd.txt');
   cmdDBListener.onDidChange(async (uri) => {
+    if (isPathIgnored(uri.fsPath, ignoredDirs)) {
+      return;
+    }
     cmdTlmDB.compileCmdFile(uri.fsPath);
     await showParsedERBIfOpen(uri.fsPath); /* Update ERB View Pane */
   });
-  cmdDBListener.onDidCreate((uri) => cmdTlmDB.compileCmdFile(uri.fsPath));
+  cmdDBListener.onDidCreate((uri) => {
+    if (isPathIgnored(uri.fsPath, ignoredDirs)) {
+      return;
+    }
+    cmdTlmDB.compileCmdFile(uri.fsPath);
+  });
 
   const tlmDBListener = vscode.workspace.createFileSystemWatcher('**/tlm.txt');
   tlmDBListener.onDidChange(async (uri) => {
+    if (isPathIgnored(uri.fsPath, ignoredDirs)) {
+      return;
+    }
     cmdTlmDB.compileTlmFile(uri.fsPath);
     await showParsedERBIfOpen(uri.fsPath);
   });
-  tlmDBListener.onDidCreate((uri) => cmdTlmDB.compileTlmFile(uri.fsPath));
+  tlmDBListener.onDidCreate((uri) => {
+    if (isPathIgnored(uri.fsPath, ignoredDirs)) {
+      return;
+    }
+    cmdTlmDB.compileTlmFile(uri.fsPath);
+  });
 
   const pluginListener = vscode.workspace.createFileSystemWatcher('**/plugin.txt');
-  pluginListener.onDidChange(async (uri) => await showParsedERBIfOpen(uri.fsPath));
+  pluginListener.onDidChange(async (uri) => {
+    if (isPathIgnored(uri.fsPath, ignoredDirs)) {
+      return;
+    }
+    await showParsedERBIfOpen(uri.fsPath);
+  });
 
   const targetListener = vscode.workspace.createFileSystemWatcher('**/target.txt');
-  targetListener.onDidChange(async (uri) => await showParsedERBIfOpen(uri.fsPath));
+  targetListener.onDidChange(async (uri) => {
+    if (isPathIgnored(uri.fsPath, ignoredDirs)) {
+      return;
+    }
+    await showParsedERBIfOpen(uri.fsPath);
+  });
+
+  const erbDefListener = vscode.workspace.createFileSystemWatcher('**/openc3-erb.json');
+  erbDefListener.onDidChange(async (uri) => {
+    if (isPathIgnored(uri.fsPath, ignoredDirs)) {
+      return;
+    }
+    await cmdTlmDB.compileWorkspace(excludePattern);
+  });
 
   const pythonProvider = vscode.languages.registerCompletionItemProvider(
     ['python'],
@@ -204,6 +273,12 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     const document = editor.document;
+    if (isPathIgnored(document.uri.fsPath, ignoredDirs)) {
+      vscode.window.showInformationMessage(
+        'This files directory is ignored by the configured ignore settings'
+      );
+      return;
+    }
     await showParsedERB(document.uri.fsPath);
   });
 
@@ -212,6 +287,7 @@ export async function activate(context: vscode.ExtensionContext) {
     cmdDBListener,
     tlmDBListener,
     pluginListener,
+    erbDefListener,
     showERBCmd,
     vscode.workspace.registerTextDocumentContentProvider(
       ParsedContentProvider.scheme,
