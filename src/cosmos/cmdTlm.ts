@@ -11,6 +11,7 @@ import {
 } from './config';
 
 const COMMAND_KEYWD = 'COMMAND';
+const TELEMETRY_KEYWD = 'TELEMETRY';
 
 export enum CmdParamType {
   PARAMETER,
@@ -18,7 +19,13 @@ export enum CmdParamType {
   ARRAY_PARAMETER,
 }
 
-enum CmdParamDataType {
+export enum TlmFieldType {
+  ITEM,
+  ID_ITEM,
+  ARRAY_ITEM,
+}
+
+enum DataType {
   INT,
   UINT,
   FLOAT,
@@ -43,7 +50,7 @@ enum CmdParserState {
 export interface CmdArgument {
   endianness: Endianness;
   name: string;
-  dataType: CmdParamDataType;
+  dataType: DataType;
   paramType: CmdParamType;
   arrayParamType: CmdParamType | undefined;
   description: string;
@@ -60,12 +67,6 @@ export interface CmdDefinition {
   arguments: Array<CmdArgument>;
 }
 
-export interface TlmDefinition {
-  id: string;
-  description: string;
-  fields: string[];
-}
-
 interface CmdDeclaration {
   target: string;
   name: string;
@@ -73,22 +74,27 @@ interface CmdDeclaration {
   description: string | undefined;
 }
 
-/* We completely ignore bit offsets/bit sizes since they are irrelevant for command suggestions.
+/* We completely ignore bit offsets/bit sizes since they are irrelevant for suggestions.
    Syntax errors with bit sizes/offsets are therfore not detectable by this module.
-   Will be implemented in the cmd/tlm syntax highlighting portion instead. */
+*/
 const cmdDeclarationRegex =
   /^COMMAND\s+(\S+)\s+(\S+)\s+(BIG_ENDIAN|LITTLE_ENDIAN)(?:(?:\s+"(.+)"))?$/;
-
 const cmdParamRegex =
   /^((?:APPEND_)?(?:PARAMETER|ID_PARAMETER))\s+(\S+).*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)\s+(.*)$/;
 const cmdBaseTypeRegex =
   /^((?:(?:MIN_|MAX_)(?:UINT|INT|FLOAT)(?:128|64|32|16|8))|(?:-?(?:0x[0-9a-fA-F]+|\d*\.?\d+(?:[eE][+-]?\d+)?)))\s+((?:(?:MIN_|MAX_)(?:UINT|INT|FLOAT)(?:128|64|32|16|8))|(?:-?(?:0x[0-9a-fA-F]+|\d*\.?\d+(?:[eE][+-]?\d+)?)))\s+((?:(?:MIN_|MAX_)(?:UINT|INT|FLOAT)(?:128|64|32|16|8))|(?:-?(?:0x[0-9a-fA-F]+|\d*\.?\d+(?:[eE][+-]?\d+)?)))(?:\s+"(.*?)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 const cmdStringValRegex = /^"(.*?)"(?:\s+"(.*?)")?(?:\s+((?:BIG|LITTLE)_ENDIAN))?$/;
-
 const cmdParamArrayRegex =
   /^((?:APPEND_)(?:ARRAY_PARAMETER))\s+(\S+)\s+.*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 const cmdArrayValRegex = /^(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 const cmdStateRegex = /^STATE\s+"?([^"]+)"?\s+((?:0x[0-9a-fA-F]+)|(?:\d+))/;
+
+const tlmDeclarationRegex =
+  /^TELEMETRY\s+(\S+)\s+(\S+)\s+(BIG_ENDIAN|LITTLE_ENDIAN)(?:(?:\s+"(.+)"))?$/;
+const tlmFieldRegex =
+  /^((?:APPEND_)?(?:ITEM))\s+(\S+).*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)(?:(?:\s+"(.+)"))?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
+const tlmIdParamRegex =
+  /^((?:APPEND_)?(?:ID_ITEM))\s+(\S+).*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)\s+((?:-?(?:0x[0-9a-fA-F]+|\d*\.?\d+(?:[eE][+-]?\d+)?))|"([^"]+)")(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 
 class ParserError extends Error {
   constructor(public message: string) {
@@ -109,6 +115,29 @@ export function getArgEnumKey(arg: CmdArgument, value: any) {
     }
   }
   return undefined;
+}
+
+function deriveEndian(endianStr: string): Endianness {
+  return endianStr === 'BIG_ENDIAN' ? Endianness.BIG : Endianness.LITTLE;
+}
+
+function deriveDataType(dataType: string): DataType {
+  switch (dataType) {
+    case 'UINT':
+      return DataType.UINT;
+    case 'INT':
+      return DataType.INT;
+    case 'FLOAT':
+      return DataType.FLOAT;
+    case 'DERIVED':
+      return DataType.DERIVED;
+    case 'STRING':
+      return DataType.STRING;
+    case 'BLOCK':
+      return DataType.BLOCK;
+    default:
+      return DataType.UNKNOWN;
+  }
 }
 
 function deriveConstNum(constVal: string): number {
@@ -209,7 +238,7 @@ export class CmdFileParser {
     }
 
     const [_, target, name, endiannessStr, description] = match;
-    const endianness = endiannessStr === 'BIG_ENDIAN' ? Endianness.BIG : Endianness.LITTLE;
+    const endianness = deriveEndian(endiannessStr);
 
     return {
       target: target,
@@ -217,25 +246,6 @@ export class CmdFileParser {
       endianness: endianness,
       description: description,
     };
-  }
-
-  private deriveDataType(dataType: string): CmdParamDataType {
-    switch (dataType) {
-      case 'UINT':
-        return CmdParamDataType.UINT;
-      case 'INT':
-        return CmdParamDataType.INT;
-      case 'FLOAT':
-        return CmdParamDataType.FLOAT;
-      case 'DERIVED':
-        return CmdParamDataType.DERIVED;
-      case 'STRING':
-        return CmdParamDataType.STRING;
-      case 'BLOCK':
-        return CmdParamDataType.BLOCK;
-      default:
-        return CmdParamDataType.UNKNOWN;
-    }
   }
 
   private tryMatchRegularParam(line: string): CmdArgument | undefined {
@@ -247,7 +257,7 @@ export class CmdFileParser {
     const [_, ptype, name, dataType, remainder] = match;
     const arg = {
       name: name,
-      dataType: this.deriveDataType(dataType),
+      dataType: deriveDataType(dataType),
       paramType: CmdParamType.PARAMETER,
       arrayParamType: undefined,
       description: '' /* Default for now */,
@@ -264,7 +274,7 @@ export class CmdFileParser {
       arg.paramType = CmdParamType.ID_PARAMETER;
     }
 
-    if (arg.dataType === CmdParamDataType.BLOCK || arg.dataType === CmdParamDataType.STRING) {
+    if (arg.dataType === DataType.BLOCK || arg.dataType === DataType.STRING) {
       const stringMatch = remainder.match(cmdStringValRegex);
       if (stringMatch) {
         const [_, value, description, endiannessStr] = stringMatch;
@@ -273,7 +283,7 @@ export class CmdFileParser {
           arg.description = description;
         }
         if (endiannessStr !== undefined) {
-          arg.endianness = 'BIG_ENDIAN' === endiannessStr ? Endianness.BIG : Endianness.LITTLE;
+          arg.endianness = deriveEndian(endiannessStr);
         }
       }
 
@@ -290,7 +300,7 @@ export class CmdFileParser {
         arg.description = description;
       }
       if (endiannessStr !== undefined) {
-        arg.endianness = endiannessStr === 'BIG_ENDIAN' ? Endianness.BIG : Endianness.LITTLE;
+        arg.endianness = deriveEndian(endiannessStr);
       }
     }
 
@@ -326,7 +336,7 @@ export class CmdFileParser {
         arg.description = description;
       }
       if (endiannessStr !== undefined) {
-        arg.endianness = 'BIG_ENDIAN' === endiannessStr ? Endianness.BIG : Endianness.LITTLE;
+        arg.endianness = deriveEndian(endiannessStr);
       }
     }
 
@@ -441,10 +451,6 @@ export class CmdFileParser {
     }
   }
 
-  private sanitizeLine(line: string): string {
-    return line.trim();
-  }
-
   private async parseTarget(fileContents: string, resources: CmdTlmResources, targetName: string) {
     const erbValues = new Map<string, string>();
     erbValues.set(TARGET_NAME_ERB_VAR, targetName);
@@ -469,7 +475,7 @@ export class CmdFileParser {
 
     for (const line of lines) {
       this.lineNumber++;
-      const sanitized = this.sanitizeLine(line);
+      const sanitized = line.trim();
       if (sanitized === '' || sanitized.startsWith('#')) {
         continue; /* Ignore empty lines + comments */
       }
@@ -499,6 +505,304 @@ export class CmdFileParser {
   }
 }
 
+enum TlmParserState {
+  TLM_DECL,
+}
+
+export interface TlmField {
+  endianness: Endianness;
+  name: string;
+  dataType: DataType;
+  paramType: TlmFieldType;
+  arrayParamType: CmdParamType | undefined;
+  description: string;
+  enumValues: Map<string, any>;
+}
+
+export interface TlmDefinition {
+  target: string;
+  id: string;
+  description: string;
+  arguments: Array<CmdArgument>;
+}
+
+interface TlmDeclaration {
+  target: string;
+  name: string;
+  endianness: Endianness;
+  description: string | undefined;
+}
+
+export class TlmFileParser {
+  private path: string;
+  private outputChannel: vscode.OutputChannel;
+  private parserState: TlmParserState = TlmParserState.TLM_DECL;
+  private lineNumber: number = 0;
+
+  private packets: Array<TlmDefinition> = new Array<TlmDefinition>();
+
+  // Stash currently parsing command info in these private vars
+  private currTlmDecl: TlmDeclaration | undefined = undefined;
+  private currTlmFields: Array<TlmField> = new Array<TlmField>();
+
+  public constructor(filePath: string, outputChannel: vscode.OutputChannel) {
+    this.outputChannel = outputChannel;
+    this.path = filePath;
+  }
+
+  public getPackets(): Array<TlmDefinition> {
+    return this.packets;
+  }
+
+  private syntaxError(line: string): ParserError {
+    // Log to vscode console then return same message to throw
+    const message = `Syntax error: '${line}'`;
+
+    this.outputChannel.appendLine(`${this.path}:${this.lineNumber}:1: ${message}`);
+    this.outputChannel.show(true);
+
+    return new ParserError(message);
+  }
+
+  private searchTlmDecl(line: string): TlmDeclaration | undefined {
+    if (!line.startsWith(TELEMETRY_KEYWD)) {
+      return undefined; /* Check first to avoid regex parse */
+    }
+
+    const match = line.match(tlmDeclarationRegex);
+    if (!match) {
+      throw this.syntaxError(line);
+    }
+
+    const [_, target, name, endiannessStr, description] = match;
+    const endianness = deriveEndian(endiannessStr);
+
+    return {
+      target: target,
+      name: name,
+      endianness: endianness,
+      description: description,
+    };
+  }
+
+  private tryMatchRegularField(line: string): TlmField | undefined {
+    const match = line.match(tlmFieldRegex);
+    if (!match) {
+      return undefined;
+    }
+
+    const [_, fieldName, dataType, description, endian] = match;
+    const arg = {
+      name: fieldName,
+      dataType: deriveDataType(dataType),
+      paramType: TlmFieldType.ITEM,
+      arrayParamType: undefined,
+      description: description,
+      endianness:
+        this.currTlmDecl?.endianness || (Endianness.LITTLE as Endianness) /* Default for now */,
+      enumValues: new Map<string, any>(),
+    };
+
+    return arg;
+  }
+
+  private tryMatchArrayParam(line: string): CmdArgument | undefined {
+    const match = line.match(cmdParamArrayRegex);
+    if (!match) {
+      return undefined;
+    }
+
+    const [_, __, name, dataType, remainder] = match;
+
+    const arg = {
+      name: name,
+      dataType: this.deriveDataType(dataType),
+      paramType: CmdParamType.ARRAY_PARAMETER,
+      arrayParamType: undefined,
+      description: '' /* Default for now */,
+      endianness:
+        this.currTlmDecl?.endianness || (Endianness.LITTLE as Endianness) /* Default for now */,
+      minVal: 0,
+      maxVal: 0,
+      defaultValue: new Array<any>(),
+      enumValues: new Map<string, any>(),
+    };
+
+    const definitionMatch = remainder.match(cmdArrayValRegex);
+    if (definitionMatch) {
+      const [_, description, endiannessStr] = definitionMatch;
+      if (description !== undefined) {
+        arg.description = description;
+      }
+      if (endiannessStr !== undefined) {
+        arg.endianness = deriveEndian(endiannessStr);
+      }
+    }
+
+    return arg;
+  }
+
+  private searchParamDecl(line: string): CmdArgument | undefined {
+    const regularParam = this.tryMatchRegularField(line);
+    if (regularParam !== undefined) {
+      return regularParam;
+    }
+
+    const arrayParam = this.tryMatchArrayParam(line);
+    if (arrayParam !== undefined) {
+      return arrayParam;
+    }
+
+    return undefined;
+  }
+
+  private tryMatchState(line: string): [string | undefined, any] {
+    const stateMatch = line.match(cmdStateRegex);
+    if (!stateMatch) {
+      return [undefined, undefined];
+    }
+
+    const [_, key, value] = stateMatch;
+    return [key, value];
+  }
+
+  private updateParamMeta(line: string) {
+    const [stateKey, stateValue] = this.tryMatchState(line);
+    if (stateKey === undefined) {
+      return;
+    }
+
+    const currParam = this.currTlmFields.at(-1);
+    if (currParam === undefined) {
+      return;
+    }
+
+    const parsedInt = parseInt(stateValue);
+    if (!isNaN(parsedInt)) {
+      currParam.enumValues.set(stateKey, parsedInt);
+      return;
+    }
+    currParam.enumValues.set(stateKey, stateValue);
+  }
+
+  private storeBufferedCmdDef(targetName: string) {
+    if (this.currTlmDecl === undefined) {
+      return;
+    }
+
+    const cmdDefinition = {
+      target: targetName,
+      id: this.currTlmDecl.name,
+      description: this.currTlmDecl.description || '',
+      arguments: new Array<CmdArgument>(),
+    };
+
+    for (const param of this.currTlmFields) {
+      cmdDefinition.arguments.push(param);
+    }
+
+    this.packets.push(cmdDefinition);
+
+    this.currTlmDecl = undefined;
+    this.currTlmFields = new Array<CmdArgument>();
+  }
+
+  private parseLine(line: string, targetName: string) {
+    switch (this.parserState) {
+      case CmdParserState.CMD_DECL:
+        const cmdDecl = this.searchTlmDecl(line);
+        if (cmdDecl === undefined) {
+          break;
+        }
+        this.currTlmDecl = cmdDecl;
+        this.parserState = CmdParserState.CMD_BODY_PARAM;
+        break;
+      case CmdParserState.CMD_BODY_PARAM:
+        if (line.startsWith(COMMAND_KEYWD)) {
+          this.storeBufferedCmdDef(targetName);
+          this.parserState = CmdParserState.CMD_DECL;
+          this.parseLine(line, targetName);
+          return;
+        }
+        const param = this.searchParamDecl(line);
+        if (param === undefined) {
+          break;
+        }
+        this.parserState = CmdParserState.CMD_PARAM_META;
+        this.currTlmFields.push(param);
+        break;
+      case CmdParserState.CMD_PARAM_META:
+        if (line.includes('PARAMETER')) {
+          this.parserState = CmdParserState.CMD_BODY_PARAM;
+          this.parseLine(line, targetName);
+          return;
+        }
+        if (line.startsWith(COMMAND_KEYWD)) {
+          this.storeBufferedCmdDef(targetName);
+          this.parserState = CmdParserState.CMD_DECL;
+          this.parseLine(line, targetName);
+          return;
+        }
+        this.updateParamMeta(line);
+        break;
+      default:
+        break;
+    }
+  }
+
+  private async parseTarget(fileContents: string, resources: CmdTlmResources, targetName: string) {
+    const erbValues = new Map<string, string>();
+    erbValues.set(TARGET_NAME_ERB_VAR, targetName);
+    for (const [key, value] of resources.erb.variables) {
+      erbValues.set(key, value);
+    }
+    await resources.plugin.parse(resources.erb);
+    for (const [key, value] of resources.plugin.variables) {
+      erbValues.set(key, value);
+    }
+
+    let erbResult = undefined;
+    try {
+      erbResult = await parseERB(fileContents, erbValues);
+    } catch (err) {
+      this.outputChannel.appendLine(`erb error: ${err}`);
+      this.outputChannel.show(true);
+      throw err;
+    }
+
+    const lines = erbResult.split('\n');
+
+    for (const line of lines) {
+      this.lineNumber++;
+      const sanitized = line.trim();
+      if (sanitized === '' || sanitized.startsWith('#')) {
+        continue; /* Ignore empty lines + comments */
+      }
+
+      try {
+        this.parseLine(sanitized, targetName);
+      } catch (err) {
+        if (err instanceof ParserError) {
+          this.outputChannel.appendLine(`parser error: ${err}`);
+          this.outputChannel.show(true);
+          return;
+        }
+
+        this.outputChannel.appendLine(`unexpected error occured ${err}`);
+        throw err;
+      }
+    }
+
+    this.storeBufferedCmdDef(targetName);
+  }
+
+  public async parse(resources: CmdTlmResources) {
+    const fileContents = fs.readFileSync(this.path, 'utf-8');
+    for (const targetName of resources.targets) {
+      await this.parseTarget(fileContents, resources, targetName);
+    }
+  }
+}
 interface CmdTlmResources {
   erb: CosmosERBConfig;
   targets: Array<string>;
