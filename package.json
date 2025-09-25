@@ -15,6 +15,9 @@
     "onLanguage:txt"
   ],
   "main": "./dist/extension.js",
+  "extensionDependencies": [
+    "ms-python.vscode-pylance"
+  ],
   "contributes": {
     "languages": [
       {

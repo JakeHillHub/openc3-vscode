@@ -7,53 +7,117 @@ from typing import Any, overload, List, Dict, Tuple, Optional, IO, Iterator, Typ
 
 # --- Commanding ---
 
-def cmd(target: str, command: str, params: dict[str, Any]) -> None:
+def cmd(target: str, command: str, params: Dict[str, Any]) -> None:
     """
     Sends a command through the COSMOS system.
+
+    Args:
+        target (str): The name of the target to send the command to.
+        command (str): The name of the command to send.
+        params (Dict[str, Any]): A dictionary of command parameters.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
-def cmd_no_range_check(target: str, command: str, params: dict[str, Any]) -> None:
+def cmd_no_range_check(target: str, command: str, params: Dict[str, Any]) -> None:
     """
-    Sends a command through the COSMOS system with no range check.
+    Sends a command through the COSMOS system, skipping the range check on parameters.
+
+    Args:
+        target (str): The name of the target to send the command to.
+        command (str): The name of the command to send.
+        params (Dict[str, Any]): A dictionary of command parameters.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
-def cmd_no_hazardous_check(target: str, command: str, params: dict[str, Any]) -> None:
+def cmd_no_hazardous_check(target: str, command: str, params: Dict[str, Any]) -> None:
     """
-    Sends a command through the COSMOS system with no hazardous check.
+    Sends a command through the COSMOS system, skipping the hazardous command check.
+
+    Args:
+        target (str): The name of the target to send the command to.
+        command (str): The name of the command to send.
+        params (Dict[str, Any]): A dictionary of command parameters.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
-def cmd_no_checks(target: str, command: str, params: dict[str, Any]) -> None:
+def cmd_no_checks(target: str, command: str, params: Dict[str, Any]) -> None:
     """
-    Sends a command through the COSMOS system with no checks.
+    Sends a command through the COSMOS system, skipping both range and hazardous checks.
+
+    Args:
+        target (str): The name of the target to send the command to.
+        command (str): The name of the command to send.
+        params (Dict[str, Any]): A dictionary of command parameters.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
-def cmd_raw(target: str, command: str, params: dict[str, Any]) -> None:
+def cmd_raw(target: str, command: str, params: Dict[str, Any]) -> None:
     """
-    Sends a raw command through the COSMOS system.
+    Sends a raw command through the COSMOS system, bypassing parameter conversion.
+
+    Args:
+        target (str): The name of the target to send the command to.
+        command (str): The name of the command to send.
+        params (Dict[str, Any]): A dictionary of raw command parameters.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
-def cmd_raw_no_range_check(target: str, command: str, params: dict[str, Any]) -> None:
+def cmd_raw_no_range_check(target: str, command: str, params: Dict[str, Any]) -> None:
     """
     Sends a raw command through the COSMOS system with no range check.
+
+    Args:
+        target (str): The name of the target to send the command to.
+        command (str): The name of the command to send.
+        params (Dict[str, Any]): A dictionary of raw command parameters.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
 def cmd_raw_no_hazardous_check(
-    target: str, command: str, params: dict[str, Any]
+    target: str, command: str, params: Dict[str, Any]
 ) -> None:
     """
     Sends a raw command through the COSMOS system with no hazardous check.
+
+    Args:
+        target (str): The name of the target to send the command to.
+        command (str): The name of the command to send.
+        params (Dict[str, Any]): A dictionary of raw command parameters.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
-def cmd_raw_no_checks(target: str, command: str, params: dict[str, Any]) -> None:
+def cmd_raw_no_checks(target: str, command: str, params: Dict[str, Any]) -> None:
     """
     Sends a raw command through the COSMOS system with no checks.
+
+    Args:
+        target (str): The name of the target to send the command to.
+        command (str): The name of the command to send.
+        params (Dict[str, Any]): A dictionary of raw command parameters.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
@@ -64,12 +128,28 @@ def build_cmd(
 ) -> Dict[str, Any]:
     """
     Builds a command binary string to see the raw bytes for a given command.
+
+    Args:
+        cmd_string (str): The command string to build (e.g., 'INST PING').
+        range_check (bool): Whether to perform a range check on the command parameters.
+                            Defaults to True.
+        raw (bool): Whether to build the command with raw values. Defaults to False.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the command's metadata and the raw byte string.
     """
     ...
 
 def send_raw(interface_name: str, data: bytes) -> None:
     """
     Sends raw data on an interface.
+
+    Args:
+        interface_name (str): The name of the interface to send data on.
+        data (bytes): The raw data to send.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
@@ -79,9 +159,16 @@ def send_raw(interface_name: str, data: bytes) -> None:
 def enable_cmd(cmd_string: str) -> None: ...
 @overload
 def enable_cmd(target_name: str, command_name: str) -> None: ...
-def enable_cmd(*args) -> None:
+def enable_cmd(*args: str) -> None:
     """
     Enables a disabled command.
+
+    Args:
+        *args: Either a single command string (e.g., 'INST PING') or
+               the target name and command name as separate strings.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
@@ -89,9 +176,16 @@ def enable_cmd(*args) -> None:
 def disable_cmd(cmd_string: str) -> None: ...
 @overload
 def disable_cmd(target_name: str, command_name: str) -> None: ...
-def disable_cmd(*args) -> None:
+def disable_cmd(*args: str) -> None:
     """
     Disables a command.
+
+    Args:
+        *args: Either a single command string (e.g., 'INST PING') or
+               the target name and command name as separate strings.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
@@ -100,12 +194,25 @@ def disable_cmd(*args) -> None:
 def get_all_cmds(target_name: str) -> List[Dict[str, Any]]:
     """
     Returns a list of dicts which fully describe the command packets for a target.
+
+    Args:
+        target_name (str): The name of the target.
+
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries, where each dictionary
+                              describes a command packet for the target.
     """
     ...
 
 def get_all_cmd_names(target_name: str) -> List[str]:
     """
     Returns a list of the command names for a particular target.
+
+    Args:
+        target_name (str): The name of the target.
+
+    Returns:
+        List[str]: A list of command names.
     """
     ...
 
@@ -113,9 +220,16 @@ def get_all_cmd_names(target_name: str) -> List[str]:
 def get_cmd(cmd_string: str) -> Dict[str, Any]: ...
 @overload
 def get_cmd(target_name: str, packet_name: str) -> Dict[str, Any]: ...
-def get_cmd(*args) -> Dict[str, Any]:
+def get_cmd(*args: str) -> Dict[str, Any]:
     """
     Returns a dict which fully describes a command packet.
+
+    Args:
+        *args: Either a single command string (e.g., "INST PING") or the target name
+               and packet name as separate strings.
+
+    Returns:
+        Dict[str, Any]: A dictionary that fully describes the command packet.
     """
     ...
 
@@ -125,9 +239,16 @@ def get_param(param_string: str) -> Dict[str, Any]: ...
 def get_param(
     target_name: str, command_name: str, param_name: str
 ) -> Dict[str, Any]: ...
-def get_param(*args) -> Dict[str, Any]:
+def get_param(*args: str) -> Dict[str, Any]:
     """
     Returns a dict of the given command parameter.
+
+    Args:
+        *args: Either a single parameter string (e.g., "INST PING.PARAM_A") or the target name,
+               command name, and parameter name as separate strings.
+
+    Returns:
+        Dict[str, Any]: A dictionary describing the command parameter.
     """
     ...
 
@@ -135,9 +256,15 @@ def get_param(*args) -> Dict[str, Any]:
 def get_cmd_buffer(cmd_string: str) -> Dict[str, Any]: ...
 @overload
 def get_cmd_buffer(target_name: str, packet_name: str) -> Dict[str, Any]: ...
-def get_cmd_buffer(*args) -> Dict[str, Any]:
+def get_cmd_buffer(*args: str) -> Dict[str, Any]:
     """
     Returns a packet dict along with the raw packet buffer.
+
+    Args:
+        *args: Either a single command string or the target name and packet name.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the command packet along with its raw buffer.
     """
     ...
 
@@ -146,6 +273,15 @@ def get_cmd_hazardous(
 ) -> bool:
     """
     Returns true/false indicating whether a particular command is flagged as hazardous.
+
+    Args:
+        target_name (str): The name of the target.
+        command_name (str): The name of the command.
+        params (Optional[Dict[str, Any]]): An optional dictionary of command parameters
+                                            to check for hazardous conditions.
+
+    Returns:
+        bool: True if the command is hazardous, False otherwise.
     """
     ...
 
@@ -159,6 +295,16 @@ def get_cmd_value(
 ) -> Any:
     """
     Reads a value from the most recently sent command packet.
+
+    Args:
+        target_name (str): The name of the target.
+        command_name (str): The name of the command.
+        param_name (str): The name of the command parameter to retrieve.
+        value_type (Optional[str]): The type of value to retrieve (e.g., 'RAW', 'CONVERTED').
+                                     Defaults to the command's configured default.
+
+    Returns:
+        Any: The value of the specified command parameter.
     """
     ...
 
@@ -167,6 +313,14 @@ def get_cmd_time(
 ) -> Tuple[str, str, Any]:
     """
     Returns the time of the most recent command sent.
+
+    Args:
+        target_name (Optional[str]): The name of the target.
+        command_name (Optional[str]): The name of the command.
+
+    Returns:
+        Tuple[str, str, Any]: A tuple containing the target name, command name,
+                              and the timestamp of the last sent command.
     """
     ...
 
@@ -174,15 +328,29 @@ def get_cmd_time(
 def get_cmd_cnt(cmd_string: str) -> int: ...
 @overload
 def get_cmd_cnt(target_name: str, command_name: str) -> int: ...
-def get_cmd_cnt(*args) -> int:
+def get_cmd_cnt(*args: Any) -> int:
     """
     Returns the number of times a specified command has been sent.
+
+    Args:
+        *args: Either a single command string (e.g., 'INST PING'), or
+               the target name and command name as separate strings.
+
+    Returns:
+        int: The count of how many times the command has been sent.
     """
     ...
 
 def get_cmd_cnts(commands: List[List[str]]) -> int:
     """
     Returns the number of times the specified commands have been sent.
+
+    Args:
+        commands (List[List[str]]): A list of command lists, where each inner
+                                    list is [target_name, command_name].
+
+    Returns:
+        int: The sum of the send counts for all specified commands.
     """
     ...
 
@@ -191,24 +359,48 @@ def get_cmd_cnts(commands: List[List[str]]) -> int:
 def critical_cmd_status(uuid: str) -> str:
     """
     Returns the status of a critical command (APPROVED, REJECTED, or WAITING).
+
+    Args:
+        uuid (str): The unique identifier of the critical command.
+
+    Returns:
+        str: The status of the command: 'APPROVED', 'REJECTED', or 'WAITING'.
     """
     ...
 
 def critical_cmd_approve(uuid: str) -> None:
     """
     Approves the critical command as the current user.
+
+    Args:
+        uuid (str): The unique identifier of the critical command.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
 def critical_cmd_reject(uuid: str) -> None:
     """
     Rejects the critical command as the current user.
+
+    Args:
+        uuid (str): The unique identifier of the critical command.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
 def critical_cmd_can_approve(uuid: str) -> bool:
     """
     Returns whether the current user can approve the critical command.
+
+    Args:
+        uuid (str): The unique identifier of the critical command.
+
+    Returns:
+        bool: True if the user can approve the command, False otherwise.
     """
     ...
 
@@ -217,43 +409,83 @@ def critical_cmd_can_approve(uuid: str) -> bool:
 def queue_create(queue_name: str) -> None:
     """
     Creates a command queue, initially in the HOLD state.
+
+    Args:
+        queue_name (str): The name of the new queue to create.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
 def queue_get(queue_name: str) -> Dict[str, Any]:
     """
     Gets information about a command queue, including its state.
+
+    Args:
+        queue_name (str): The name of the queue to retrieve information for.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing information about the queue.
     """
     ...
 
 def queue_all() -> List[Dict[str, Any]]:
     """
     Gets information about all command queues.
+
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries, where each dictionary
+                              contains information about a queue.
     """
     ...
 
 def queue_list(queue_name: str) -> List[Dict[str, Any]]:
     """
-
     Lists all commands in the queue, including username, creation time, and the command itself.
+
+    Args:
+        queue_name (str): The name of the queue to list commands from.
+
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries, where each dictionary
+                              represents a command in the queue.
     """
     ...
 
 def queue_hold(queue_name: str) -> None:
     """
     Puts the specified queue into HOLD mode.
+
+    Args:
+        queue_name (str): The name of the queue to hold.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
 def queue_release(queue_name: str) -> None:
     """
     Puts the specified queue into RELEASE mode.
+
+    Args:
+        queue_name (str): The name of the queue to release.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
 def queue_disable(queue_name: str) -> None:
     """
     Puts the specified queue into DISABLE mode.
+
+    Args:
+        queue_name (str): The name of the queue to disable.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
@@ -261,12 +493,26 @@ def queue_exec(queue_name: str, index: Optional[int] = None) -> None:
     """
     Removes a command from the queue and executes it.
     If no index is given, the first command is executed.
+
+    Args:
+        queue_name (str): The name of the queue to execute from.
+        index (Optional[int]): The index of the command to execute. Defaults to the
+                               first command (index 0).
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
 def queue_delete(queue_name: str) -> None:
     """
     Deletes the specified queue and any commands that it holds.
+
+    Args:
+        queue_name (str): The name of the queue to delete.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
@@ -280,10 +526,20 @@ def ask(question: str, blank_or_default: bool) -> Any: ...
 def ask(question: str, blank_or_default: Any) -> Any: ...
 @overload
 def ask(question: str, blank_or_default: bool, password: bool) -> Any: ...
-def ask(*args) -> Any:
+def ask(*args: Any) -> Any:
     """
     Prompts the user for input and automatically converts the string to the
     appropriate data type.
+
+    Args:
+        question (str): The question to display to the user.
+        blank_or_default (Any): A boolean or default value. If True, a blank
+                                input is allowed. If a value is provided, it
+                                will be used as the default.
+        password (bool): If True, masks the input as a password.
+
+    Returns:
+        Any: The user's input, converted to the appropriate data type.
     """
     ...
 
@@ -295,9 +551,19 @@ def ask_string(question: str, blank_or_default: bool) -> str: ...
 def ask_string(question: str, blank_or_default: str) -> str: ...
 @overload
 def ask_string(question: str, blank_or_default: bool, password: bool) -> str: ...
-def ask_string(*args) -> str:
+def ask_string(*args: Any) -> str:
     """
     Prompts the user for input and always returns the input as a string.
+
+    Args:
+        question (str): The question to display to the user.
+        blank_or_default (Any): A boolean or default value. If True, a blank
+                                input is allowed. If a value is provided, it
+                                will be used as the default.
+        password (bool): If True, masks the input as a password.
+
+    Returns:
+        str: The user's input as a string.
     """
     ...
 
@@ -305,6 +571,13 @@ def message_box(message: str, *button_texts: str) -> str:
     """
     Creates a message box with arbitrary buttons and returns the text of the
     button clicked.
+
+    Args:
+        message (str): The message to display in the box.
+        *button_texts (str): The text for each button.
+
+    Returns:
+        str: The text of the button the user clicked.
     """
     ...
 
@@ -312,6 +585,13 @@ def vertical_message_box(message: str, *button_texts: str) -> str:
     """
     Creates a vertical message box with arbitrary buttons and returns the text
     of the button clicked.
+
+    Args:
+        message (str): The message to display in the box.
+        *button_texts (str): The text for each button.
+
+    Returns:
+        str: The text of the button the user clicked.
     """
     ...
 
@@ -319,6 +599,13 @@ def combo_box(message: str, *selection_texts: str) -> str:
     """
     Creates a combo box with arbitrary selections and returns the text of the
     selection clicked.
+
+    Args:
+        message (str): The message to display above the combo box.
+        *selection_texts (str): The text for each selection in the combo box.
+
+    Returns:
+        str: The text of the selection the user chose.
     """
     ...
 
@@ -327,18 +614,33 @@ def combo_box(message: str, *selection_texts: str) -> str:
 def get_target_file(file_path: str, original: bool = False) -> IO:
     """
     Returns a file handle to a file in the target directory.
+
+    Args:
+        file_path (str): The path to the file on the target.
+        original (bool): If True, retrieves the original version of the file, ignoring
+                         any patches. Defaults to False.
+
+    Returns:
+        IO: A file-like object for the requested file.
     """
     ...
 
 def put_target_file(file_path: str, data: str | IO) -> None:
     """
     Writes a file to the target directory.
+
+    Args:
+        file_path (str): The path to the file on the target.
+        data (str | IO): The data to write. Can be a string or a file-like object.
     """
     ...
 
 def delete_target_file(file_path: str) -> None:
     """
     Deletes a file in the target directory.
+
+    Args:
+        file_path (str): The path to the file on the target.
     """
     ...
 
@@ -346,10 +648,20 @@ def delete_target_file(file_path: str) -> None:
 def open_file_dialog(
     title: str, message: Optional[str] = None, filter: Optional[str] = None
 ) -> IO: ...
-def open_file_dialog(*args, **kwargs) -> IO:
+def open_file_dialog(*args: str, **kwargs: str) -> IO:
     """
     Creates a file dialog box for the user to select a single file. The selected
     file handle is returned.
+
+    Args:
+        title (str): The title of the dialog box.
+        message (Optional[str]): A message to display in the dialog box.
+                                 Defaults to None.
+        filter (Optional[str]): A filter for the file types to show (e.g., "*.txt").
+                                Defaults to None.
+
+    Returns:
+        IO: A file-like object for the selected file.
     """
     ...
 
@@ -357,10 +669,20 @@ def open_file_dialog(*args, **kwargs) -> IO:
 def open_files_dialog(
     title: str, message: Optional[str] = None, filter: Optional[str] = None
 ) -> List[IO]: ...
-def open_files_dialog(*args, **kwargs) -> List[IO]:
+def open_files_dialog(*args: str, **kwargs: str) -> List[IO]:
     """
     Creates a file dialog box for the user to select multiple files. A list of
     the selected file handles is returned.
+
+    Args:
+        title (str): The title of the dialog box.
+        message (Optional[str]): A message to display in the dialog box.
+                                 Defaults to None.
+        filter (Optional[str]): A filter for the file types to show (e.g., "*.txt").
+                                Defaults to None.
+
+    Returns:
+        List[IO]: A list of file-like objects for the selected files.
     """
     ...
 
@@ -369,10 +691,17 @@ def open_files_dialog(*args, **kwargs) -> List[IO]:
 def prompt(message: str) -> None:
     """
     Displays a message to the user and waits for them to press an OK button.
+
+    Args:
+        message (str): The string message to display to the user.
+
+    Returns:
+        None: This function does not return a value.
     """
     ...
 
 # --- Handling Telemetry ---
+
 RAW: str = "RAW"
 CONVERTED: str = "CONVERTED"
 FORMATTED: str = "FORMATTED"
@@ -391,6 +720,12 @@ def check(
 ) -> None:
     """
     Performs a verification of a telemetry item.
+
+    Args:
+        telemetry_item (str): The name of the telemetry item to check.
+        comparison (Optional[str]): A string comparison to perform (e.g., "== 5").
+                                    If omitted, a simple existence check is performed.
+        type (str): The type of value to use for the check. Defaults to CONVERTED.
     """
     ...
 
@@ -399,6 +734,11 @@ def check_raw(telemetry_item: str, comparison: Optional[str] = None) -> None: ..
 def check_raw(telemetry_item: str, comparison: Optional[str] = None) -> None:
     """
     Performs a verification of a telemetry item in RAW form.
+
+    Args:
+        telemetry_item (str): The name of the telemetry item to check.
+        comparison (Optional[str]): A string comparison to perform (e.g., "== 5").
+                                    If omitted, a simple existence check is performed.
     """
     ...
 
@@ -407,6 +747,11 @@ def check_formatted(telemetry_item: str, comparison: Optional[str] = None) -> No
 def check_formatted(telemetry_item: str, comparison: Optional[str] = None) -> None:
     """
     Performs a verification of a telemetry item in FORMATTED form.
+
+    Args:
+        telemetry_item (str): The name of the telemetry item to check.
+        comparison (Optional[str]): A string comparison to perform (e.g., "== 'OK'").
+                                    If omitted, a simple existence check is performed.
     """
     ...
 
@@ -415,6 +760,11 @@ def check_with_units(telemetry_item: str, comparison: Optional[str] = None) -> N
 def check_with_units(telemetry_item: str, comparison: Optional[str] = None) -> None:
     """
     Performs a verification of a telemetry item with UNITS.
+
+    Args:
+        telemetry_item (str): The name of the telemetry item to check.
+        comparison (Optional[str]): A string comparison to perform (e.g., "== '5 C'").
+                                    If omitted, a simple existence check is performed.
     """
     ...
 
@@ -426,6 +776,12 @@ def check_tolerance(
 ) -> None:
     """
     Checks a converted telemetry item against an expected value with a tolerance.
+
+    Args:
+        telemetry_item (str): The name of the telemetry item.
+        expected_value (float): The expected value.
+        tolerance (float): The allowed tolerance.
+        type (str): The type of value to use for the check. Defaults to CONVERTED.
     """
     ...
 
@@ -436,6 +792,11 @@ def check_expression(
 ) -> None:
     """
     Evaluates an expression and pauses the script if it evaluates to false.
+
+    Args:
+        expression_to_evaluate (str): The expression to evaluate.
+        globals (Optional[Dict]): A dictionary of global variables for the expression.
+        locals (Optional[Dict]): A dictionary of local variables for the expression.
     """
     ...
 
@@ -443,9 +804,14 @@ def check_expression(
 def check_exception(method_name: str, method_params: Optional[str] = None) -> None: ...
 @overload
 def check_exception(method_name: str, **kwargs: Any) -> None: ...
-def check_exception(*args, **kwargs) -> None:
+def check_exception(*args: Any, **kwargs: Any) -> None:
     """
     Executes a method and expects an exception to be raised.
+
+    Args:
+        method_name (str): The name of the method to execute.
+        method_params (Optional[str]): Parameters to pass to the method.
+        **kwargs: Additional keyword arguments to pass to the method.
     """
     ...
 
@@ -455,9 +821,20 @@ def tlm(telemetry_item: str, type: str = CONVERTED) -> Any: ...
 def tlm(
     target_name: str, packet_name: str, item_name: str, type: str = CONVERTED
 ) -> Any: ...
-def tlm(*args, **kwargs) -> Any:
+def tlm(*args: str, **kwargs: str) -> Any:
     """
     Reads the specified form of a telemetry item.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+        type (str): The type of value to return (RAW, CONVERTED, FORMATTED, or WITH_UNITS).
+                    Defaults to CONVERTED.
+
+    Returns:
+        Any: The value of the telemetry item in the specified form.
     """
     ...
 
@@ -465,9 +842,18 @@ def tlm(*args, **kwargs) -> Any:
 def tlm_raw(telemetry_item: str) -> Any: ...
 @overload
 def tlm_raw(target_name: str, packet_name: str, item_name: str) -> Any: ...
-def tlm_raw(*args) -> Any:
+def tlm_raw(*args: str) -> Any:
     """
     Reads the RAW form of a telemetry item.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+
+    Returns:
+        Any: The raw value of the telemetry item.
     """
     ...
 
@@ -475,9 +861,18 @@ def tlm_raw(*args) -> Any:
 def tlm_formatted(telemetry_item: str) -> str: ...
 @overload
 def tlm_formatted(target_name: str, packet_name: str, item_name: str) -> str: ...
-def tlm_formatted(*args) -> str:
+def tlm_formatted(*args: str) -> str:
     """
     Reads the FORMATTED form of a telemetry item.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+
+    Returns:
+        str: The formatted string value of the telemetry item.
     """
     ...
 
@@ -485,9 +880,18 @@ def tlm_formatted(*args) -> str:
 def tlm_with_units(telemetry_item: str) -> str: ...
 @overload
 def tlm_with_units(target_name: str, packet_name: str, item_name: str) -> str: ...
-def tlm_with_units(*args) -> str:
+def tlm_with_units(*args: str) -> str:
     """
     Reads the WITH_UNITS form of a telemetry item.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+
+    Returns:
+        str: The string value of the telemetry item including its units.
     """
     ...
 
@@ -495,9 +899,17 @@ def tlm_with_units(*args) -> str:
 def get_tlm_buffer(telemetry_packet: str) -> Dict[str, Any]: ...
 @overload
 def get_tlm_buffer(target_name: str, packet_name: str) -> Dict[str, Any]: ...
-def get_tlm_buffer(*args) -> Dict[str, Any]:
+def get_tlm_buffer(*args: str) -> Dict[str, Any]:
     """
     Returns a packet hash along with the raw packet buffer.
+
+    Args:
+        telemetry_packet (str): The full name of the telemetry packet (e.g., "INST HEALTH_STATUS").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the packet data, including the raw buffer.
     """
     ...
 
@@ -509,15 +921,31 @@ def get_tlm_packet(
 def get_tlm_packet(
     target_name: str, packet_name: str, type: str = CONVERTED
 ) -> List[Tuple[str, Any, str]]: ...
-def get_tlm_packet(*args, **kwargs) -> List[Tuple[str, Any, str]]:
+def get_tlm_packet(*args: str, **kwargs: str) -> List[Tuple[str, Any, str]]:
     """
     Returns the names, values, and limits states of all telemetry items in a specified packet.
+
+    Args:
+        telemetry_packet (str): The full name of the telemetry packet (e.g., "INST HEALTH_STATUS").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        type (str): The type of value to return. Defaults to CONVERTED.
+
+    Returns:
+        List[Tuple[str, Any, str]]: A list of tuples, where each tuple contains
+                                    (item_name, item_value, limits_state).
     """
     ...
 
 def get_tlm_available(items: List[str]) -> List[str]:
     """
     Returns the actual items available based on the specified set of telemetry items.
+
+    Args:
+        items (List[str]): A list of telemetry item names to check for availability.
+
+    Returns:
+        List[str]: A list of the available telemetry item names.
     """
     ...
 
@@ -526,24 +954,50 @@ def get_tlm_values(
 ) -> Tuple[List[Any], List[str], List[Any], List[str]]:
     """
     Returns the values and current limits state for a specified set of telemetry items.
+
+    Args:
+        items (List[str]): A list of telemetry item names to retrieve values for.
+
+    Returns:
+        Tuple[List[Any], List[str], List[Any], List[str]]: A tuple containing
+                                                        (values, limits_states, raw_values, times).
     """
     ...
 
 def get_all_tlm(target_name: str) -> List[Dict[str, Any]]:
     """
     Returns an array of all target packet hashes.
+
+    Args:
+        target_name (str): The name of the target.
+
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries, where each dictionary
+                              represents a telemetry packet.
     """
     ...
 
 def get_all_tlm_names(target_name: str) -> List[str]:
     """
     Returns an array of all target packet names.
+
+    Args:
+        target_name (str): The name of the target.
+
+    Returns:
+        List[str]: A list of strings representing the packet names.
     """
     ...
 
 def get_all_tlm_item_names(target_name: str) -> List[str]:
     """
     Returns all the item names for every packet in a target.
+
+    Args:
+        target_name (str): The name of the target.
+
+    Returns:
+        List[str]: A list of strings representing the item names.
     """
     ...
 
@@ -551,9 +1005,17 @@ def get_all_tlm_item_names(target_name: str) -> List[str]:
 def get_tlm(telemetry_packet: str) -> Dict[str, Any]: ...
 @overload
 def get_tlm(target_name: str, packet_name: str) -> Dict[str, Any]: ...
-def get_tlm(*args) -> Dict[str, Any]:
+def get_tlm(*args: str) -> Dict[str, Any]:
     """
     Returns a packet hash.
+
+    Args:
+        telemetry_packet (str): The full name of the telemetry packet (e.g., "INST HEALTH_STATUS").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+
+    Returns:
+        Dict[str, Any]: A dictionary representing the telemetry packet.
     """
     ...
 
@@ -561,9 +1023,18 @@ def get_tlm(*args) -> Dict[str, Any]:
 def get_item(telemetry_item: str) -> Dict[str, Any]: ...
 @overload
 def get_item(target_name: str, packet_name: str, item_name: str) -> Dict[str, Any]: ...
-def get_item(*args) -> Dict[str, Any]:
+def get_item(*args: str) -> Dict[str, Any]:
     """
     Returns an item hash.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+
+    Returns:
+        Dict[str, Any]: A dictionary representing the telemetry item.
     """
     ...
 
@@ -571,9 +1042,17 @@ def get_item(*args) -> Dict[str, Any]:
 def get_tlm_cnt(telemetry_packet: str) -> int: ...
 @overload
 def get_tlm_cnt(target_name: str, packet_name: str) -> int: ...
-def get_tlm_cnt(*args) -> int:
+def get_tlm_cnt(*args: str) -> int:
     """
     Returns the number of times a specified telemetry packet has been received.
+
+    Args:
+        telemetry_packet (str): The full name of the telemetry packet (e.g., "INST HEALTH_STATUS").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+
+    Returns:
+        int: The receive count for the packet.
     """
     ...
 
@@ -582,6 +1061,11 @@ def set_tlm(telemetry_item_with_value: str, type: str = CONVERTED) -> None: ...
 def set_tlm(telemetry_item_with_value: str, type: str = CONVERTED) -> None:
     """
     Sets a telemetry item value in the Command and Telemetry Server.
+
+    Args:
+        telemetry_item_with_value (str): The name of the telemetry item and its new value
+                                        (e.g., "INST HEALTH_STATUS TEMP1 50").
+        type (str): The type of value being set. Defaults to CONVERTED.
     """
     ...
 
@@ -600,6 +1084,13 @@ def inject_tlm(
 ) -> None:
     """
     Injects a packet into the system.
+
+    Args:
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_hash (Optional[Dict]): A dictionary of item names and values to inject.
+                                   If omitted, an empty packet is injected.
+        type (str): The type of value being injected. Defaults to CONVERTED.
     """
     ...
 
@@ -608,6 +1099,11 @@ def override_tlm(telemetry_item_with_value: str, type: str = "ALL") -> None: ...
 def override_tlm(telemetry_item_with_value: str, type: str = "ALL") -> None:
     """
     Sets the converted value for a telemetry point and maintains it.
+
+    Args:
+        telemetry_item_with_value (str): The name of the telemetry item and its new value
+                                        (e.g., "INST HEALTH_STATUS TEMP1 50").
+        type (str): The override type (e.g., RAW, CONVERTED, or "ALL"). Defaults to "ALL".
     """
     ...
 
@@ -616,12 +1112,20 @@ def normalize_tlm(telemetry_item: str, type: str = "ALL") -> None: ...
 def normalize_tlm(telemetry_item: str, type: str = "ALL") -> None:
     """
     Clears the override of a telemetry point.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item to normalize (e.g., "INST HEALTH_STATUS TEMP1").
+        type (str): The override type to normalize (e.g., RAW, CONVERTED, or "ALL"). Defaults to "ALL".
     """
     ...
 
 def get_overrides() -> List[Dict[str, Any]]:
     """
-    Returns an array of the currently overridden values.
+    Returns a list of the currently overridden values.
+
+    Returns:
+        List[Dict[str, Any]]: A list of dictionaries, where each dictionary
+                              represents an overridden telemetry item.
     """
     ...
 
@@ -631,6 +1135,13 @@ def subscribe_packets(packets: List[List[str]]) -> int:
     """
     Allows the user to listen for one or more telemetry packets of data to arrive.
     A unique id is returned which is used to retrieve the data.
+
+    Args:
+        packets (List[List[str]]): A list of packets to subscribe to,
+                                   with each packet as a list of [target_name, packet_name].
+
+    Returns:
+        int: A unique subscription ID used to retrieve the data.
     """
     ...
 
@@ -643,6 +1154,16 @@ def get_packets(
 ) -> Tuple[int, List[Dict[str, Any]]]:
     """
     Streams packet data from a previous subscription.
+
+    Args:
+        id (int): The subscription ID returned by subscribe_packets().
+        block (Optional[int]): The block number to start retrieving data from.
+                               If not provided, retrieves from the last block.
+        count (int): The number of packets to retrieve. Defaults to 1000.
+
+    Returns:
+        Tuple[int, List[Dict[str, Any]]]: A tuple containing the next block number
+                                          and a list of packet data dictionaries.
     """
     ...
 
@@ -650,15 +1171,30 @@ def get_packets(
 def get_tlm_cnt(telemetry_packet: str) -> int: ...
 @overload
 def get_tlm_cnt(target_name: str, packet_name: str) -> int: ...
-def get_tlm_cnt(*args) -> int:
+def get_tlm_cnt(*args: str) -> int:
     """
-    Get the receive count for a telemetry packet.
+    Gets the receive count for a telemetry packet.
+
+    Args:
+        telemetry_packet (str): The full name of the telemetry packet (e.g., "INST HEALTH_STATUS").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+
+    Returns:
+        int: The number of times the packet has been received.
     """
     ...
 
 def get_tlm_cnts(packets: List[List[str]]) -> List[int]:
     """
-    Get the receive counts for an array of telemetry packets.
+    Gets the receive counts for an array of telemetry packets.
+
+    Args:
+        packets (List[List[str]]): A list of packets, with each packet as a list
+                                   of [target_name, packet_name].
+
+    Returns:
+        List[int]: A list of integers representing the receive count for each packet.
     """
     ...
 
@@ -666,14 +1202,23 @@ def get_tlm_cnts(packets: List[List[str]]) -> List[int]:
 def get_packet_derived_items(telemetry_packet: str) -> List[str]: ...
 @overload
 def get_packet_derived_items(target_name: str, packet_name: str) -> List[str]: ...
-def get_packet_derived_items(*args) -> List[str]:
+def get_packet_derived_items(*args: str) -> List[str]:
     """
-    Get the list of derived telemetry items for a packet.
+    Gets the list of derived telemetry items for a packet.
+
+    Args:
+        telemetry_packet (str): The full name of the telemetry packet (e.g., "INST HEALTH_STATUS").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+
+    Returns:
+        List[str]: A list of strings representing the names of the derived items.
     """
     ...
 
 # --- Delays ---
 DEFAULT_TLM_POLLING_RATE: float = 0.25
+CONVERTED: str = "CONVERTED"
 
 @overload
 def wait() -> float: ...
@@ -687,9 +1232,21 @@ def wait(
     type: str = CONVERTED,
     quiet: bool = True,
 ) -> bool: ...
-def wait(*args, **kwargs) -> Any:
+def wait(*args: Any, **kwargs: Any) -> Any:
     """
     Pauses the script for a configurable amount of time or until a telemetry item meets given criteria.
+
+    Args:
+        time_in_seconds (float): The amount of time to wait in seconds.
+        telemetry_item (str): The name of the telemetry item to wait on.
+        timeout (float): The maximum time to wait in seconds.
+        polling_rate (float): The rate at which to poll the telemetry item. Defaults to 0.25 seconds.
+        type (str): The type of value to use (e.g., 'CONVERTED'). Defaults to 'CONVERTED'.
+        quiet (bool): If True, suppresses output during the wait. Defaults to True.
+
+    Returns:
+        float: The time waited in seconds if only time is given.
+        bool: True if the wait condition was met, False otherwise.
     """
     ...
 
@@ -704,6 +1261,18 @@ def wait_tolerance(
 ) -> bool:
     """
     Pauses the script until a telemetry item equals an expected value within a tolerance.
+
+    Args:
+        telemetry_item (str): The name of the telemetry item.
+        expected_value (float): The value to wait for.
+        tolerance (float): The allowed tolerance.
+        timeout (float): The maximum time to wait in seconds.
+        polling_rate (float): The rate at which to poll the telemetry item. Defaults to 0.25 seconds.
+        type (str): The type of value to use (e.g., 'CONVERTED'). Defaults to 'CONVERTED'.
+        quiet (bool): If True, suppresses output during the wait. Defaults to True.
+
+    Returns:
+        bool: True if the wait condition was met, False otherwise.
     """
     ...
 
@@ -717,6 +1286,17 @@ def wait_expression(
 ) -> bool:
     """
     Pauses the script until an expression is evaluated to be true or a timeout occurs.
+
+    Args:
+        expression_to_eval (str): The expression to evaluate.
+        timeout (float): The maximum time to wait in seconds.
+        polling_rate (float): The rate at which to poll the telemetry item. Defaults to 0.25 seconds.
+        globals (Optional[Dict]): A dictionary of global variables to use in the expression.
+        locals (Optional[Dict]): A dictionary of local variables to use in the expression.
+        quiet (bool): If True, suppresses output during the wait. Defaults to False.
+
+    Returns:
+        bool: True if the expression evaluated to True, False otherwise.
     """
     ...
 
@@ -730,6 +1310,17 @@ def wait_packet(
 ) -> bool:
     """
     Pauses the script until a certain number of packets have been received.
+
+    Args:
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        num_packets (int): The number of packets to wait for.
+        timeout (float): The maximum time to wait in seconds.
+        polling_rate (float): The rate at which to poll for new packets. Defaults to 0.25 seconds.
+        quiet (bool): If True, suppresses output during the wait. Defaults to True.
+
+    Returns:
+        bool: True if the wait condition was met, False otherwise.
     """
     ...
 
@@ -741,6 +1332,15 @@ def wait_check(
 ) -> float:
     """
     Pauses the script until a telemetry item meets given criteria or times out, stopping on timeout.
+
+    Args:
+        telemetry_item (str): The name of the telemetry item.
+        timeout (float): The maximum time to wait in seconds.
+        polling_rate (float): The rate at which to poll the telemetry item. Defaults to 0.25 seconds.
+        type (str): The type of value to use (e.g., 'CONVERTED'). Defaults to 'CONVERTED'.
+
+    Returns:
+        float: The time waited in seconds.
     """
     ...
 
@@ -754,6 +1354,17 @@ def wait_check_tolerance(
 ) -> float:
     """
     Pauses the script until a telemetry item equals an expected value within a tolerance, stopping on timeout.
+
+    Args:
+        telemetry_item (str): The name of the telemetry item.
+        expected_value (float): The value to wait for.
+        tolerance (float): The allowed tolerance.
+        timeout (float): The maximum time to wait in seconds.
+        polling_rate (float): The rate at which to poll the telemetry item. Defaults to 0.25 seconds.
+        type (str): The type of value to use (e.g., 'CONVERTED'). Defaults to 'CONVERTED'.
+
+    Returns:
+        float: The time waited in seconds.
     """
     ...
 
@@ -766,6 +1377,16 @@ def wait_check_expression(
 ) -> float:
     """
     Pauses the script until an expression evaluates to true or times out, stopping on timeout.
+
+    Args:
+        expression_to_eval (str): The expression to evaluate.
+        timeout (float): The maximum time to wait in seconds.
+        polling_rate (float): The rate at which to poll the telemetry item. Defaults to 0.25 seconds.
+        globals (Optional[Dict]): A dictionary of global variables to use in the expression.
+        locals (Optional[Dict]): A dictionary of local variables to use in the expression.
+
+    Returns:
+        float: The time waited in seconds.
     """
     ...
 
@@ -779,6 +1400,17 @@ def wait_check_packet(
 ) -> float:
     """
     Pauses the script until a certain number of packets have been received, stopping on timeout.
+
+    Args:
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        num_packets (int): The number of packets to wait for.
+        timeout (float): The maximum time to wait in seconds.
+        polling_rate (float): The rate at which to poll for new packets. Defaults to 0.25 seconds.
+        quiet (bool): If True, suppresses output during the wait. Defaults to True.
+
+    Returns:
+        float: The time waited in seconds.
     """
     ...
 
@@ -788,9 +1420,18 @@ def wait_check_packet(
 def limits_enabled(telemetry_item: str) -> bool: ...
 @overload
 def limits_enabled(target_name: str, packet_name: str, item_name: str) -> bool: ...
-def limits_enabled(*args) -> bool:
+def limits_enabled(*args: str) -> bool:
     """
     Returns true/false depending on whether limits are enabled for a telemetry item.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+
+    Returns:
+        bool: True if limits are enabled, False otherwise.
     """
     ...
 
@@ -798,9 +1439,15 @@ def limits_enabled(*args) -> bool:
 def enable_limits(telemetry_item: str) -> None: ...
 @overload
 def enable_limits(target_name: str, packet_name: str, item_name: str) -> None: ...
-def enable_limits(*args) -> None:
+def enable_limits(*args: str) -> None:
     """
     Enables limits monitoring for the specified telemetry item.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
     """
     ...
 
@@ -808,45 +1455,69 @@ def enable_limits(*args) -> None:
 def disable_limits(telemetry_item: str) -> None: ...
 @overload
 def disable_limits(target_name: str, packet_name: str, item_name: str) -> None: ...
-def disable_limits(*args) -> None:
+def disable_limits(*args: str) -> None:
     """
     Disables limits monitoring for the specified telemetry item.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
     """
     ...
 
 def enable_limits_group(limits_group_name: str) -> None:
     """
     Enables limits monitoring on a set of telemetry items specified in a limits group.
+
+    Args:
+        limits_group_name (str): The name of the limits group to enable.
     """
     ...
 
 def disable_limits_group(limits_group_name: str) -> None:
     """
     Disables limits monitoring on a set of telemetry items specified in a limits group.
+
+    Args:
+        limits_group_name (str): The name of the limits group to disable.
     """
     ...
 
 def get_limits_groups() -> List[str]:
     """
     Returns the list of limits groups in the system.
+
+    Returns:
+        List[str]: A list of strings representing the limits group names.
     """
     ...
 
 def set_limits_set(limits_set_name: str) -> None:
     """
     Sets the current limits set.
+
+    Args:
+        limits_set_name (str): The name of the limits set to activate.
     """
     ...
 
 def get_limits_set() -> str:
     """
     Returns the name of the current limits set.
+
+    Returns:
+        str: The name of the active limits set.
     """
     ...
 
 def get_limits_sets() -> List[str]:
     """
     Returns the list of limits sets in the system.
+
+    Returns:
+        List[str]: A list of strings representing the limits set names.
     """
     ...
 
@@ -856,9 +1527,18 @@ def get_limits(telemetry_item: str) -> Dict[str, List[float]]: ...
 def get_limits(
     target_name: str, packet_name: str, item_name: str
 ) -> Dict[str, List[float]]: ...
-def get_limits(*args) -> Dict[str, List[float]]:
+def get_limits(*args: str) -> Dict[str, List[float]]:
     """
-    Returns hash / dict of all the limits settings for a telemetry point.
+    Returns a dictionary of all the limits settings for a telemetry point.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+
+    Returns:
+        Dict[str, List[float]]: A dictionary containing the limits settings (e.g., 'red_high', 'yellow_low').
     """
     ...
 
@@ -877,21 +1557,46 @@ def set_limits(
     persistence: Optional[int] = None,
     enabled: Optional[bool] = None,
 ) -> None: ...
-def set_limits(*args, **kwargs) -> None:
+def set_limits(*args: Any, **kwargs: Any) -> None:
     """
     Sets limits settings for a telemetry point.
+
+    Args:
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+        red_low (float): The lower red limit.
+        yellow_low (float): The lower yellow limit.
+        yellow_high (float): The upper yellow limit.
+        red_high (float): The upper red limit.
+        green_low (Optional[float]): The lower green limit.
+        green_high (Optional[float]): The upper green limit.
+        limits_set (Optional[str]): The name of the limits set to apply these limits to.
+        persistence (Optional[int]): The number of samples an item must be out of limits to trigger an event.
+        enabled (Optional[bool]): If True, enables the limits.
     """
     ...
 
 def get_out_of_limits() -> List[Dict[str, str]]:
     """
-    Returns an array with the target_name, packet_name, item_name, and limits_state of all items that are out of their limits ranges.
+    Returns a list of all items that are currently out of their defined limits.
+
+    Returns:
+        List[Dict[str, str]]: A list of dictionaries, where each dictionary contains
+                              the 'target_name', 'packet_name', 'item_name', and 'limits_state'
+                              of an out-of-limits item.
     """
     ...
 
 def get_overall_limits_state(ignored_items: Optional[List[List[str]]] = None) -> str:
     """
     Returns the overall limits state for the COSMOS system.
+
+    Args:
+        ignored_items (Optional[List[List[str]]]): A list of items to ignore when calculating the state.
+
+    Returns:
+        str: The overall limits state (e.g., 'GREEN', 'YELLOW', 'RED').
     """
     ...
 
@@ -900,6 +1605,14 @@ def get_limits_events(
 ) -> List[Tuple[str, Dict[str, Any]]]:
     """
     Returns limits events based on an offset returned from the last time it was called.
+
+    Args:
+        offset (Optional[str]): An offset to retrieve events from.
+        count (int): The number of events to return. Defaults to 100.
+
+    Returns:
+        List[Tuple[str, Dict[str, Any]]]: A list of tuples, where each tuple contains an offset
+                                          and a dictionary of event data.
     """
     ...
 
@@ -908,18 +1621,34 @@ def get_limits_events(
 def plugin_list(default: bool = False) -> List[str]:
     """
     Returns all the installed plugins.
+
+    Args:
+        default (bool): If True, returns default plugins as well. Defaults to False.
+
+    Returns:
+        List[str]: A list of strings representing the installed plugin names.
     """
     ...
 
 def plugin_get(plugin_name: str) -> Dict[str, Any]:
     """
     Returns information about an installed plugin.
+
+    Args:
+        plugin_name (str): The name of the plugin.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing information about the plugin.
     """
     ...
 
 def package_list() -> Dict[str, List[str]]:
     """
-    List all the packages installed in COSMOS.
+    Lists all the packages installed in COSMOS.
+
+    Returns:
+        Dict[str, List[str]]: A dictionary where keys are package types (e.g., 'gem', 'pip')
+                              and values are lists of installed package names.
     """
     ...
 
@@ -928,18 +1657,31 @@ def package_list() -> Dict[str, List[str]]:
 def get_target_names() -> List[str]:
     """
     Returns a list of the targets in the system.
+
+    Returns:
+        List[str]: A list of strings representing the target names.
     """
     ...
 
 def get_target(target_name: str) -> Dict[str, Any]:
     """
     Returns a target hash containing all the information about the target.
+
+    Args:
+        target_name (str): The name of the target.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing all information about the target.
     """
     ...
 
 def get_target_interfaces() -> List[Tuple[str, str]]:
     """
     Returns the interfaces for all targets.
+
+    Returns:
+        List[Tuple[str, str]]: A list of tuples, where each tuple contains
+                               the target name and its associated interface name.
     """
     ...
 
@@ -948,12 +1690,21 @@ def get_target_interfaces() -> List[Tuple[str, str]]:
 def get_interface(interface_name: str) -> Dict[str, Any]:
     """
     Returns an interface status including the as-built interface and its current status.
+
+    Args:
+        interface_name (str): The name of the interface.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the interface's status and configuration.
     """
     ...
 
 def get_interface_names() -> List[str]:
     """
     Returns a list of the interfaces in the system.
+
+    Returns:
+        List[str]: A list of strings representing the interface names.
     """
     ...
 
@@ -975,18 +1726,29 @@ def connect_interface(*args: Any, **kwargs: Any) -> None: ...
 def disconnect_interface(interface_name: str) -> None:
     """
     Disconnects from targets associated with a COSMOS interface.
+
+    Args:
+        interface_name (str): The name of the interface to disconnect.
     """
     ...
 
 def start_raw_logging_interface(interface_name: str = "ALL") -> None:
     """
     Starts logging of raw data on one or all interfaces.
+
+    Args:
+        interface_name (str): The name of the interface to start logging for.
+                              Defaults to "ALL" to start logging for all interfaces.
     """
     ...
 
 def stop_raw_logging_interface(interface_name: str = "ALL") -> None:
     """
     Stops logging of raw data on one or all interfaces.
+
+    Args:
+        interface_name (str): The name of the interface to stop logging for.
+                              Defaults to "ALL" to stop logging for all interfaces.
     """
     ...
 
@@ -994,9 +1756,12 @@ def get_all_interface_info() -> (
     List[Tuple[str, str, int, int, int, int, int, int, int]]
 ):
     """
-    Returns information about all interfaces. The return value is an array of arrays where each
-    subarray contains the interface name, connection state, number of connected clients, transmit queue size,
-    receive queue size, bytes transmitted, bytes received, command count, and telemetry count.
+    Returns information about all interfaces.
+
+    Returns:
+        List[Tuple[str, str, int, int, int, int, int, int, int]]: A list of tuples, where each
+        tuple contains the interface name, connection state, number of connected clients, transmit queue size,
+        receive queue size, bytes transmitted, bytes received, command count, and telemetry count.
     """
     ...
 
@@ -1008,7 +1773,15 @@ def map_target_to_interface(
     unmap_old: bool = True,
 ) -> None:
     """
-    Map a target to an interface allowing target commands and telemetry to be processed by that interface.
+    Maps a target to an interface, allowing the interface to process the target's commands and telemetry.
+
+    Args:
+        target_name (str): The name of the target.
+        interface_name (str): The name of the interface.
+        cmd_only (bool): If True, only map target commands to the interface. Defaults to False.
+        tlm_only (bool): If True, only map target telemetry to the interface. Defaults to False.
+        unmap_old (bool): If True, remove the target from all existing interfaces before mapping.
+                          Defaults to True.
     """
     ...
 
