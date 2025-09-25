@@ -117,7 +117,10 @@ export function getArgEnumKey(arg: CmdArgument, value: any) {
   return undefined;
 }
 
-function deriveEndian(endianStr: string): Endianness {
+function deriveEndian(endianStr: string | undefined): Endianness | undefined {
+  if (endianStr === undefined) {
+    return undefined;
+  }
   return endianStr === 'BIG_ENDIAN' ? Endianness.BIG : Endianness.LITTLE;
 }
 
@@ -243,7 +246,7 @@ export class CmdFileParser {
     return {
       target: target,
       name: name,
-      endianness: endianness,
+      endianness: endianness as Endianness /* Cannot be undefined, required by regex */,
       description: description,
     };
   }
@@ -283,7 +286,8 @@ export class CmdFileParser {
           arg.description = description;
         }
         if (endiannessStr !== undefined) {
-          arg.endianness = deriveEndian(endiannessStr);
+          arg.endianness =
+            deriveEndian(endiannessStr) || this.currCmdDecl?.endianness || Endianness.LITTLE;
         }
       }
 
@@ -300,7 +304,8 @@ export class CmdFileParser {
         arg.description = description;
       }
       if (endiannessStr !== undefined) {
-        arg.endianness = deriveEndian(endiannessStr);
+        arg.endianness =
+          deriveEndian(endiannessStr) || this.currCmdDecl?.endianness || Endianness.LITTLE;
       }
     }
 
@@ -317,7 +322,7 @@ export class CmdFileParser {
 
     const arg = {
       name: name,
-      dataType: this.deriveDataType(dataType),
+      dataType: deriveDataType(dataType),
       paramType: CmdParamType.ARRAY_PARAMETER,
       arrayParamType: undefined,
       description: '' /* Default for now */,
@@ -336,7 +341,8 @@ export class CmdFileParser {
         arg.description = description;
       }
       if (endiannessStr !== undefined) {
-        arg.endianness = deriveEndian(endiannessStr);
+        arg.endianness =
+          deriveEndian(endiannessStr) || this.currCmdDecl?.endianness || Endianness.LITTLE;
       }
     }
 
@@ -591,15 +597,14 @@ export class TlmFileParser {
       return undefined;
     }
 
-    const [_, fieldName, dataType, description, endian] = match;
+    const [_, fieldName, dataType, description, endianStr] = match;
     const arg = {
       name: fieldName,
       dataType: deriveDataType(dataType),
       paramType: TlmFieldType.ITEM,
       arrayParamType: undefined,
-      description: description,
-      endianness:
-        this.currTlmDecl?.endianness || (Endianness.LITTLE as Endianness) /* Default for now */,
+      description: description || fieldName,
+      endianness: deriveEndian(endianStr) || this.currTlmDecl?.endianness || Endianness.LITTLE,
       enumValues: new Map<string, any>(),
     };
 
@@ -616,7 +621,7 @@ export class TlmFileParser {
 
     const arg = {
       name: name,
-      dataType: this.deriveDataType(dataType),
+      dataType: deriveDataType(dataType),
       paramType: CmdParamType.ARRAY_PARAMETER,
       arrayParamType: undefined,
       description: '' /* Default for now */,
@@ -635,7 +640,8 @@ export class TlmFileParser {
         arg.description = description;
       }
       if (endiannessStr !== undefined) {
-        arg.endianness = deriveEndian(endiannessStr);
+        arg.endianness =
+          deriveEndian(endiannessStr) || this.currTlmDecl?.endianness || Endianness.LITTLE;
       }
     }
 
