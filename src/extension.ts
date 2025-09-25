@@ -177,11 +177,17 @@ export async function activate(context: vscode.ExtensionContext) {
   cmdDBListener.onDidCreate((uri) => cmdTlmDB.compileCmdFile(uri.fsPath));
 
   const tlmDBListener = vscode.workspace.createFileSystemWatcher('**/tlm.txt');
-  tlmDBListener.onDidChange((uri) => outputChannel.appendLine(`uri ${uri}`));
-  tlmDBListener.onDidCreate((uri) => outputChannel.appendLine(`uri ${uri}`));
+  tlmDBListener.onDidChange(async (uri) => {
+    cmdTlmDB.compileTlmFile(uri.fsPath);
+    await showParsedERBIfOpen(uri.fsPath);
+  });
+  tlmDBListener.onDidCreate((uri) => cmdTlmDB.compileTlmFile(uri.fsPath));
 
   const pluginListener = vscode.workspace.createFileSystemWatcher('**/plugin.txt');
   pluginListener.onDidChange(async (uri) => await showParsedERBIfOpen(uri.fsPath));
+
+  const targetListener = vscode.workspace.createFileSystemWatcher('**/target.txt');
+  targetListener.onDidChange(async (uri) => await showParsedERBIfOpen(uri.fsPath));
 
   const pythonProvider = vscode.languages.registerCompletionItemProvider(
     ['python'],

@@ -74,11 +74,9 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
       return undefined;
     }
 
-    // Use the robust parser instead of a simple split
     const args = this.parseCmdArgs(argumentMatch[1]);
     const currentArgIndex = args.length - 1;
 
-    // This logic for the first two arguments remains the same
     if (currentArgIndex === 0) {
       return this.getCmdTargets();
     }

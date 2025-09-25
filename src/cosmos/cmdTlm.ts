@@ -90,23 +90,23 @@ interface CmdDeclaration {
 const cmdDeclarationRegex =
   /^COMMAND\s+(\S+)\s+(\S+)\s+(BIG_ENDIAN|LITTLE_ENDIAN)(?:(?:\s+"(.+)"))?$/;
 const cmdParamRegex =
-  /^((?:APPEND_)?(?:PARAMETER|ID_PARAMETER))\s+(\S+).*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)\s+(.*)$/;
+  /^((?:APPEND_)?(?:PARAMETER|ID_PARAMETER))\s+(\S+).*?(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)\s+(.*)$/;
 const cmdBaseTypeRegex =
   /^((?:(?:MIN_|MAX_)(?:UINT|INT|FLOAT)(?:128|64|32|16|8))|(?:-?(?:0x[0-9a-fA-F]+|\d*\.?\d+(?:[eE][+-]?\d+)?)))\s+((?:(?:MIN_|MAX_)(?:UINT|INT|FLOAT)(?:128|64|32|16|8))|(?:-?(?:0x[0-9a-fA-F]+|\d*\.?\d+(?:[eE][+-]?\d+)?)))\s+((?:(?:MIN_|MAX_)(?:UINT|INT|FLOAT)(?:128|64|32|16|8))|(?:-?(?:0x[0-9a-fA-F]+|\d*\.?\d+(?:[eE][+-]?\d+)?)))(?:\s+"(.*?)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 const cmdStringValRegex = /^"(.*?)"(?:\s+"(.*?)")?(?:\s+((?:BIG|LITTLE)_ENDIAN))?$/;
 const cmdParamArrayRegex =
-  /^((?:APPEND_)(?:ARRAY_PARAMETER))\s+(\S+)\s+.*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
+  /^((?:APPEND_)(?:ARRAY_PARAMETER))\s+(\S+)\s+.*?(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 const cmdArrayValRegex = /^(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 const cmdStateRegex = /^STATE\s+"?([^"]+)"?\s+((?:0x[0-9a-fA-F]+)|(?:\d+))/;
 
 const tlmDeclarationRegex =
   /^TELEMETRY\s+(\S+)\s+(\S+)\s+(BIG_ENDIAN|LITTLE_ENDIAN)(?:(?:\s+"(.+)"))?$/;
 const tlmFieldRegex =
-  /^(?:(?:APPEND_)?(?:ITEM))\s+(\S+).*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)(?:(?:\s+"(.+)"))?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
+  /^(?:(?:APPEND_)?(?:ITEM))\s+(\S+).*?(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)(?:(?:\s+"(.+)"))?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 const tlmIdFieldRegex =
-  /^(?:(?:APPEND_)?(?:ID_ITEM))\s+(\S+).*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)\s+((?:-?(?:0x[0-9a-fA-F]+|\d*\.?\d+(?:[eE][+-]?\d+)?))|"([^"]+)")(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
+  /^(?:(?:APPEND_)?(?:ID_ITEM))\s+(\S+).*?(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)\s+((?:-?(?:0x[0-9a-fA-F]+|\d*\.?\d+(?:[eE][+-]?\d+)?))|"([^"]+)")(?:\s+"(.*)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 const tlmArrayFieldRegex =
-  /^(?:(?:APPEND_)?(?:ARRAY_ITEM))\s+(\S+).*(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)\s+(?:-?(?:0x[0-9a-fA-F]+|\d*\.?\d+(?:[eE][+-]?\d+)?))(?:\s+"([^"]+)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
+  /^(?:(?:APPEND_)?(?:ARRAY_ITEM))\s+(\S+).*?(UINT|INT|FLOAT|DERIVED|STRING|BLOCK)\s+(?:-?(?:0x[0-9a-fA-F]+|\d*\.?\d+(?:[eE][+-]?\d+)?))(?:\s+"([^"]+)")?(?:\s+(BIG_ENDIAN|LITTLE_ENDIAN))?$/;
 
 class ParserError extends Error {
   constructor(public message: string) {
@@ -234,7 +234,7 @@ export class CmdFileParser {
 
   private syntaxError(line: string): ParserError {
     // Log to vscode console then return same message to throw
-    const message = `Syntax error: '${line}'`;
+    const message = `Syntax error: ${line}`;
 
     this.outputChannel.appendLine(`${this.path}:${this.lineNumber}:1: ${message}`);
     this.outputChannel.show(true);
@@ -562,7 +562,7 @@ export class TlmFileParser {
 
   private packets: Array<TlmDefinition> = new Array<TlmDefinition>();
 
-  // Stash currently parsing command info in these private vars
+  // Stash currently parsing telemetry info in these private vars
   private currTlmDecl: TlmDeclaration | undefined = undefined;
   private currTlmFields: Array<TlmField> = new Array<TlmField>();
 
@@ -577,7 +577,7 @@ export class TlmFileParser {
 
   private syntaxError(line: string): ParserError {
     // Log to vscode console then return same message to throw
-    const message = `Syntax error: '${line}'`;
+    const message = `Syntax error: ${line}`;
 
     this.outputChannel.appendLine(`${this.path}:${this.lineNumber}:1: ${message}`);
     this.outputChannel.show(true);
@@ -601,7 +601,7 @@ export class TlmFileParser {
     return {
       target: target,
       name: name,
-      endianness: endianness,
+      endianness: endianness || Endianness.LITTLE,
       description: description,
     };
   }
