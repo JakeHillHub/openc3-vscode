@@ -11,10 +11,14 @@ export class PythonStubManager {
     this.outputChannel = outputChannel;
   }
 
-  public async initializeStubs() {
+  /**
+   * Run initialization steps to configure workspace properly
+   */
+  public async initializeStubs(ignoredDirsPattern: string) {
     await this.copyCosmosAPIStubs();
     await this.configureAPIStubs();
     await this.configureDiagnosticSeverity();
+    await this.addAllExistingPluginStubs(ignoredDirsPattern);
   }
 
   /**
@@ -63,7 +67,7 @@ export class PythonStubManager {
     const extraPathsSourcePath = 'python.analysis.extraPaths';
     const existingPaths = config.get(extraPathsSourcePath, []);
 
-    /* Run all paths through a set to ensure uniqueness */
+    /* Run all paths through a set to prevent duplicates */
     const pathSet = new Set<string>();
     for (const p of existingPaths) {
       pathSet.add(p);
@@ -77,9 +81,9 @@ export class PythonStubManager {
     await config.update(extraPathsSourcePath, pathsOut, vscode.ConfigurationTarget.Workspace);
   }
 
-  public async addAllExistingPluginStubs(excludePattern: string) {
+  public async addAllExistingPluginStubs(ignoredDirsPattern: string) {
     const csearch = new CosmosProjectSearch(this.outputChannel);
-    const targetDirs = await csearch.getAllTargetDirs(excludePattern, (targPath: string) => {
+    const targetDirs = await csearch.getAllTargetDirs(ignoredDirsPattern, (targPath: string) => {
       return `${path.dirname(vscode.workspace.asRelativePath(targPath))}`;
     });
 

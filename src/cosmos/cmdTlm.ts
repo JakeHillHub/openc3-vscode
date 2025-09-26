@@ -489,7 +489,7 @@ export class CmdFileParser {
       throw err;
     }
 
-    const lines = erbResult.split('\n');
+    const lines = erbResult.split(/\r?\n/);
 
     for (const line of lines) {
       this.lineNumber++;
@@ -796,7 +796,7 @@ export class TlmFileParser {
       throw err;
     }
 
-    const lines = erbResult.split('\n');
+    const lines = erbResult.split(/\r?\n/);
 
     for (const line of lines) {
       this.lineNumber++;

@@ -45,7 +45,7 @@ export async function extensionShouldLoad(): Promise<boolean> {
 
 /**
  * Ensure we have a .vscode folder with a settings.json file if there isn't one already
- * @returns {boolean} did we create a new settings.json file?
+ * @returns {Promise<boolean>} did we create a new settings.json file?
  */
 export async function ensureVscodeSettings(): Promise<boolean> {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -193,7 +193,7 @@ export class EditorFileManager {
     return showERBCmd;
   }
 
-  public createFileWatchers(cmdTlmDB: CosmosCmdTlmDB): vscode.Disposable[] {
+  public createOpenC3Watchers(cmdTlmDB: CosmosCmdTlmDB): vscode.Disposable[] {
     /* Watchers */
     const cosmosWatcher = vscode.workspace.createFileSystemWatcher(
       '**/{cmd.txt,tlm.txt,plugin.txt,target.txt,openc3-erb.json}'
@@ -227,5 +227,15 @@ export class EditorFileManager {
     );
 
     return [cosmosWatcher, erbContentProvider];
+  }
+
+  public createVscodeSettingsWatcher(): vscode.Disposable {
+    const vscodeSettingsWatcher = vscode.workspace.createFileSystemWatcher(
+      '**/.vscode/settings.json'
+    );
+    vscodeSettingsWatcher.onDidChange(async (uri) => {
+      this.outputChannel.appendLine('vscode settings changed');
+    });
+    return vscodeSettingsWatcher;
   }
 }

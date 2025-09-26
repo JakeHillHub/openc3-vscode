@@ -72,10 +72,15 @@
             "type": "string"
           }
         },
-        "openc3.AutoIgnorePyi": {
+        "openc3.autoGitignore": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically add .pyi generated files to gitignore and hide in workspace"
+          "description": "Automatically add generated .pyi stub files to gitignore"
+        },
+        "openc3.autoEditorHide": {
+          "type": "boolean",
+          "default": true,
+          "description": "Configure vscode to automatically hide generated .pyi stub files"
         }
       }
     }

@@ -61,7 +61,7 @@ export class CosmosPluginConfig {
       contents = contents.replace(new RegExp(re, 'g'), value);
     }
 
-    const lines = contents.split('\n');
+    const lines = contents.split(/\r?\n/);
     for (let line of lines) {
       line = line.trim();
 
@@ -93,7 +93,7 @@ export class CosmosPluginConfig {
 
     try {
       const erbResult = await parseERB(contents, erbVars);
-      const erbLines = erbResult.split('\n');
+      const erbLines = erbResult.split(/\r?\n/);
       for (let line of erbLines) {
         line = line.trim();
 
