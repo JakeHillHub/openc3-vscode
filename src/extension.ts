@@ -50,7 +50,13 @@ export async function activate(context: vscode.ExtensionContext) {
       },
       async () => {
         await ensureVscodeSettings();
-        await gitIgnoreManager.ensureGitIgnore();
+
+        const initialGitIgnorePatterns = [];
+        const pyStubsPath = pythonStubManager.getPyStubsIgnore();
+        if (pyStubsPath) {
+          initialGitIgnorePatterns.push(pyStubsPath);
+        }
+        await gitIgnoreManager.initializeGitIgnore(...initialGitIgnorePatterns);
 
         await Promise.all([
           cmdTlmDB.compileWorkspace(editorFileManager.getIgnoredDirPattern()),

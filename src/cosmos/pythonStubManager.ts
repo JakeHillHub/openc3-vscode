@@ -11,6 +11,15 @@ export class PythonStubManager {
     this.outputChannel = outputChannel;
   }
 
+  public getPyStubsIgnore(): string | undefined {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+      return undefined;
+    }
+    const stubPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'pystubs');
+    return vscode.workspace.asRelativePath(stubPath);
+  }
+
   /**
    * Run initialization steps to configure workspace properly
    */

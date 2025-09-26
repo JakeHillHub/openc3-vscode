@@ -14,7 +14,8 @@ export class GitIgnoreManager {
 
   private enabled: boolean;
   private gitIgnorePath: string = '';
-  private managedRegex: RegExp;
+  private contentsRegex: RegExp;
+  private fullBlockRegex: RegExp;
 
   constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
@@ -29,7 +30,11 @@ export class GitIgnoreManager {
       this.gitIgnorePath = path.join(workspaceFolder.uri.fsPath, '.gitignore');
     }
 
-    this.managedRegex = new RegExp(
+    this.contentsRegex = new RegExp(
+      `${GitIgnoreManager.managedMarkerStart}(.+?)${GitIgnoreManager.managedMarkerEnd}`,
+      's'
+    );
+    this.fullBlockRegex = new RegExp(
       `${GitIgnoreManager.managedMarkerStart}(.+?)${GitIgnoreManager.managedMarkerEnd}`,
       'sg'
     );
@@ -38,7 +43,7 @@ export class GitIgnoreManager {
   /**
    * Ensure .gitignore exists if not already created
    */
-  public async ensureGitIgnore() {
+  public async initializeGitIgnore(...initialPatterns: string[]) {
     if (!this.enabled) {
       return;
     }
@@ -46,8 +51,39 @@ export class GitIgnoreManager {
     try {
       await fs.access(this.gitIgnorePath);
     } catch (err) {
-      await fs.writeFile(this.gitIgnorePath, '');
+      await fs.writeFile(
+        this.gitIgnorePath,
+        `${GitIgnoreManager.managedMarkerStart}\n${GitIgnoreManager.managedMarkerEnd}`
+      );
     }
+
+    for (const pattern of initialPatterns) {
+      await this.addPattern(pattern);
+    }
+  }
+
+  public async addPattern(ignorePattern: string) {
+    if (!this.enabled) {
+      return;
+    }
+
+    const patterns = await this.getPatterns();
+    if (patterns === undefined) {
+      return;
+    }
+
+    const patternSet = new Set<string>();
+    for (const pattern of patterns) {
+      patternSet.add(pattern);
+    }
+    patternSet.add(ignorePattern);
+
+    const writeBackPatterns = [];
+    for (const pattern of patternSet) {
+      writeBackPatterns.push(pattern);
+    }
+
+    await this.setPatterns(writeBackPatterns);
   }
 
   /**
@@ -55,36 +91,50 @@ export class GitIgnoreManager {
    * @param _writeBack internal use only, do not specify
    * @returns {Promise<string[] | undefined>} each pattern line as a list
    */
-  private async getManagedSection(_writeBack?: boolean): Promise<string[] | undefined> {
+  private async getPatterns(_writeBack?: boolean): Promise<string[] | undefined> {
     if (!this.enabled) {
       return undefined;
     }
 
     try {
       const contents = await fs.readFile(this.gitIgnorePath, 'utf-8');
-      const sectionMatch = contents.match(this.managedRegex);
+      const sectionMatch = contents.match(this.contentsRegex);
       if (!sectionMatch) {
         if (_writeBack) {
           return undefined; /* Prevent infinite retry recursion */
         }
 
-        const writeBack =
+        const intializeBlock =
           contents +
-          `\n${GitIgnoreManager.managedMarkerStart}\n${GitIgnoreManager.managedMarkerEnd}`;
-        await fs.writeFile(this.gitIgnorePath, writeBack);
-        return await this.getManagedSection(true); /* Retry with section added */
+          `\n\n${GitIgnoreManager.managedMarkerStart}\n${GitIgnoreManager.managedMarkerEnd}\n`;
+        await fs.writeFile(this.gitIgnorePath, intializeBlock);
+        return await this.getPatterns(true); /* Retry with section added */
       }
 
       const [_, section] = sectionMatch;
-      const sectionLines = section.split(/\r?\n/);
+      const sectionLines = section.trim().split(/\r?\n/);
       const retLines = [];
       for (const line of sectionLines) {
+        if (line === '') {
+          continue;
+        }
         retLines.push(line.trim());
       }
       return retLines;
     } catch (err) {
       this.outputChannel.appendLine(`error reading gitignore managed section ${err}`);
       return undefined;
+    }
+  }
+
+  private async setPatterns(patterns: string[]) {
+    try {
+      const contents = await fs.readFile(this.gitIgnorePath, 'utf-8');
+      const newBlock = `${GitIgnoreManager.managedMarkerStart}\n${patterns.join('\n')}\n${GitIgnoreManager.managedMarkerEnd}`;
+      const replaced = contents.replace(this.fullBlockRegex, newBlock);
+      await fs.writeFile(this.gitIgnorePath, replaced);
+    } catch (err) {
+      this.outputChannel.appendLine(`failed to set patterns in .gitignore ${err}`);
     }
   }
 }
