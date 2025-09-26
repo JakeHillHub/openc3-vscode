@@ -41,6 +41,7 @@ export async function activate(context: vscode.ExtensionContext) {
   subscribe(pythonProvider, ...editorFileWatchers);
 
   const reinitializeExtension = async () => {
+    /* Run longer running initialization tasks - can be used to rebuild context after settings.json change */
     vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
@@ -48,7 +49,6 @@ export async function activate(context: vscode.ExtensionContext) {
         cancellable: false,
       },
       async () => {
-        /* Run larger initialization tasks */
         await ensureVscodeSettings();
         await gitIgnoreManager.ensureGitIgnore();
 
@@ -67,7 +67,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   await reinitializeExtension();
 
-  const vscodeSettingsWatcher = editorFileManager.createVscodeSettingsWatcher();
+  const vscodeSettingsWatcher =
+    editorFileManager.createVscodeSettingsWatcher(reinitializeExtension);
   subscribe(vscodeSettingsWatcher);
 }
 

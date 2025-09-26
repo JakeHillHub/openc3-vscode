@@ -10,7 +10,9 @@ import * as fs from 'fs/promises';
 
 import { CosmosCmdTlmDB } from './cosmos/cmdTlm';
 import { CosmosProjectSearch } from './cosmos/config';
+import { debounce } from './utility';
 
+const debounceInterval = 100; /* Avoid file updates within this interval, milliseconds */
 const alwaysIgnoreDirectories = ['node_modules', '.git', '.vscode'];
 
 /**
@@ -198,28 +200,33 @@ export class EditorFileManager {
     const cosmosWatcher = vscode.workspace.createFileSystemWatcher(
       '**/{cmd.txt,tlm.txt,plugin.txt,target.txt,openc3-erb.json}'
     );
-    cosmosWatcher.onDidChange(async (uri) => {
-      if (this.isPathIgnored(uri.fsPath, this.ignoredDirs)) {
-        return;
-      }
+    cosmosWatcher.onDidChange(
+      debounce(async (uri: vscode.Uri) => {
+        if (this.isPathIgnored(uri.fsPath, this.ignoredDirs)) {
+          return;
+        }
 
-      const fileName = path.basename(uri.fsPath);
-      if (fileName !== 'openc3-erb.json') {
-        await this.showParsedERBIfOpen(uri.fsPath); /* Update ERB View Pane */
-      }
+        const fileName = path.basename(uri.fsPath);
+        if (fileName !== 'openc3-erb.json') {
+          await this.showParsedERBIfOpen(uri.fsPath); /* Update ERB View Pane */
+        }
 
-      switch (fileName) {
-        case 'cmd.txt':
-          cmdTlmDB.compileCmdFile(uri.fsPath);
-          break;
-        case 'tlm.txt':
-          cmdTlmDB.compileTlmFile(uri.fsPath);
-          break;
-        case 'openc3-erb.json':
-          await cmdTlmDB.compileWorkspace(this.ignoredPattern);
-          break;
-      }
-    });
+        switch (fileName) {
+          case 'cmd.txt':
+            this.outputChannel.appendLine(`Recompiling ${uri.fsPath}`);
+            cmdTlmDB.compileCmdFile(uri.fsPath);
+            break;
+          case 'tlm.txt':
+            this.outputChannel.appendLine(`Recompiling ${uri.fsPath}`);
+            cmdTlmDB.compileTlmFile(uri.fsPath);
+            break;
+          case 'openc3-erb.json':
+            this.outputChannel.appendLine(`Recompiling workspace`);
+            await cmdTlmDB.compileWorkspace(this.ignoredPattern);
+            break;
+        }
+      }, debounceInterval)
+    );
 
     const erbContentProvider = vscode.workspace.registerTextDocumentContentProvider(
       ParsedContentProvider.scheme,
@@ -229,13 +236,21 @@ export class EditorFileManager {
     return [cosmosWatcher, erbContentProvider];
   }
 
-  public createVscodeSettingsWatcher(): vscode.Disposable {
+  public createVscodeSettingsWatcher(
+    reinitializeExtension: () => Promise<void>
+  ): vscode.Disposable {
     const vscodeSettingsWatcher = vscode.workspace.createFileSystemWatcher(
       '**/.vscode/settings.json'
     );
-    vscodeSettingsWatcher.onDidChange(async (uri) => {
-      this.outputChannel.appendLine('vscode settings changed');
-    });
+
+    /* For some reason this handler runs upwards of three times per file save
+    so we debounce it */
+    vscodeSettingsWatcher.onDidChange(
+      debounce(async (uri: vscode.Uri) => {
+        this.outputChannel.appendLine('vscode settings changed');
+        await reinitializeExtension();
+      }, debounceInterval)
+    );
     return vscodeSettingsWatcher;
   }
 }

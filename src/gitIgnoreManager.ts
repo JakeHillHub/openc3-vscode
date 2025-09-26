@@ -50,6 +50,11 @@ export class GitIgnoreManager {
     }
   }
 
+  /**
+   * Get managed section from gitignore, if it does not exist will retry to create it
+   * @param _writeBack internal use only, do not specify
+   * @returns {Promise<string[] | undefined>} each pattern line as a list
+   */
   private async getManagedSection(_writeBack?: boolean): Promise<string[] | undefined> {
     if (!this.enabled) {
       return undefined;
