@@ -3,12 +3,15 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { CosmosProjectSearch } from './config';
+import { UpdateSettingsFlag } from '../utility';
 
 export class PythonStubManager {
   private outputChannel: vscode.OutputChannel;
+  private updateSettingsFlag: UpdateSettingsFlag;
 
-  constructor(outputChannel: vscode.OutputChannel) {
+  constructor(outputChannel: vscode.OutputChannel, updateSettingsFlag: UpdateSettingsFlag) {
     this.outputChannel = outputChannel;
+    this.updateSettingsFlag = updateSettingsFlag;
   }
 
   public getPyStubsIgnore(): string | undefined {
@@ -49,12 +52,39 @@ export class PythonStubManager {
   }
 
   /**
+   * Add hide .pyi to workspace configuration
+   */
+  public async configureHiddenStubs() {
+    const config = vscode.workspace.getConfiguration();
+    const hidden = config.get('openc3.autoEditorHide', true);
+    const filesExcluded = config.get('files.exclude', {}) as any;
+
+    this.updateSettingsFlag.set();
+    const hiddenPatterns = ['**/pystubs', '**/*.pyi'];
+    if (hidden) {
+      for (const pattern of hiddenPatterns) {
+        filesExcluded[pattern] = true;
+      }
+      await config.update('files.exclude', filesExcluded);
+    } else {
+      for (const pattern of hiddenPatterns) {
+        filesExcluded[pattern] = undefined;
+      }
+      await config.update('files.exclude', filesExcluded);
+    }
+    this.updateSettingsFlag.clear();
+  }
+
+  /**
    * Add API stubs to python analysis configuration
    */
   private async configureAPIStubs() {
     const config = vscode.workspace.getConfiguration();
     const settingPath = 'python.analysis.stubPath';
+
+    this.updateSettingsFlag.set();
     await config.update(settingPath, './.vscode/pystubs', vscode.ConfigurationTarget.Workspace);
+    this.updateSettingsFlag.clear();
   }
 
   /**
@@ -63,9 +93,11 @@ export class PythonStubManager {
   private async configureDiagnosticSeverity() {
     const config = vscode.workspace.getConfiguration();
     const ignoreMissingSourcePath = 'python.analysis.diagnosticSeverityOverrides';
+    this.updateSettingsFlag.set();
     await config.update(ignoreMissingSourcePath, {
       reportMissingModuleSource: 'none',
     });
+    this.updateSettingsFlag.clear();
   }
 
   /**
@@ -87,7 +119,10 @@ export class PythonStubManager {
     for (const p of pathSet) {
       pathsOut.push(p);
     }
+
+    this.updateSettingsFlag.set();
     await config.update(extraPathsSourcePath, pathsOut, vscode.ConfigurationTarget.Workspace);
+    this.updateSettingsFlag.clear();
   }
 
   public async addAllExistingPluginStubs(ignoredDirsPattern: string) {

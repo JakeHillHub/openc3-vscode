@@ -5,6 +5,7 @@ import { CosmosCmdTlmDB } from './cosmos/cmdTlm';
 import { EditorFileManager, extensionShouldLoad, ensureVscodeSettings } from './editorFileManager';
 import { PythonStubManager } from './cosmos/pythonStubManager';
 import { GitIgnoreManager } from './gitIgnoreManager';
+import { UpdateSettingsFlag } from './utility';
 
 const cleanupResources = new Array<vscode.Disposable>();
 
@@ -25,8 +26,10 @@ export async function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel('OpenC3 Scripting');
   const editorFileManager = new EditorFileManager(outputChannel);
 
+  const updateSettingsFlag = new UpdateSettingsFlag();
+
   const cmdTlmDB = new CosmosCmdTlmDB(outputChannel);
-  const pythonStubManager = new PythonStubManager(outputChannel);
+  const pythonStubManager = new PythonStubManager(outputChannel, updateSettingsFlag);
   const gitIgnoreManager = new GitIgnoreManager(outputChannel);
 
   const triggerChars = ['(', ',', ' ']; /* Chars that trigger python completion */
@@ -49,6 +52,8 @@ export async function activate(context: vscode.ExtensionContext) {
         cancellable: false,
       },
       async () => {
+        updateSettingsFlag.set();
+
         await ensureVscodeSettings();
 
         const initialGitIgnorePatterns = [];
@@ -57,6 +62,7 @@ export async function activate(context: vscode.ExtensionContext) {
           initialGitIgnorePatterns.push(pyStubsPath);
         }
         await gitIgnoreManager.initializeGitIgnore(...initialGitIgnorePatterns);
+        await pythonStubManager.configureHiddenStubs();
 
         await Promise.all([
           cmdTlmDB.compileWorkspace(editorFileManager.getIgnoredDirPattern()),
@@ -66,6 +72,8 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showInformationMessage(
           'OpenC3 contexts initialized, workspace configuration has been updated'
         );
+
+        updateSettingsFlag.clear();
         return 'OpenC3 initialized';
       }
     );
@@ -73,8 +81,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
   await reinitializeExtension();
 
-  const vscodeSettingsWatcher =
-    editorFileManager.createVscodeSettingsWatcher(reinitializeExtension);
+  const vscodeSettingsWatcher = editorFileManager.createVscodeSettingsWatcher(
+    reinitializeExtension,
+    updateSettingsFlag
+  );
   subscribe(vscodeSettingsWatcher);
 }
 

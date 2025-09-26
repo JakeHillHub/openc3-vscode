@@ -12,16 +12,13 @@ export class GitIgnoreManager {
 
   private outputChannel: vscode.OutputChannel;
 
-  private enabled: boolean;
+  private enabled: boolean = true;
   private gitIgnorePath: string = '';
   private contentsRegex: RegExp;
   private fullBlockRegex: RegExp;
 
   constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
-
-    const config = vscode.workspace.getConfiguration();
-    this.enabled = config.get('openc3.autoGitignore', true);
 
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
@@ -44,7 +41,22 @@ export class GitIgnoreManager {
    * Ensure .gitignore exists if not already created
    */
   public async initializeGitIgnore(...initialPatterns: string[]) {
+    const config = vscode.workspace.getConfiguration(); /* Query the enable status */
+    this.enabled = config.get('openc3.autoGitignore', true);
+
     if (!this.enabled) {
+      try {
+        /* Cleanup after ourselves if disabled by user */
+        await fs.access(this.gitIgnorePath);
+        const contents = await fs.readFile(this.gitIgnorePath, 'utf-8');
+        if (contents.match(this.contentsRegex)) {
+          /* Block already exists, remove it */
+          const writeBack = contents.replace(this.fullBlockRegex, '');
+          await fs.writeFile(this.gitIgnorePath, writeBack);
+        }
+      } catch (err) {
+        return; /* No .gitignore, no worries */
+      }
       return;
     }
 

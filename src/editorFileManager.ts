@@ -10,7 +10,7 @@ import * as fs from 'fs/promises';
 
 import { CosmosCmdTlmDB } from './cosmos/cmdTlm';
 import { CosmosProjectSearch } from './cosmos/config';
-import { debounce } from './utility';
+import { debounce, UpdateSettingsFlag } from './utility';
 
 const debounceInterval = 100; /* Avoid file updates within this interval, milliseconds */
 const alwaysIgnoreDirectories = ['node_modules', '.git', '.vscode'];
@@ -237,20 +237,16 @@ export class EditorFileManager {
   }
 
   public createVscodeSettingsWatcher(
-    reinitializeExtension: () => Promise<void>
+    reinitializeExtension: () => Promise<void>,
+    updateSettingsFlag: UpdateSettingsFlag
   ): vscode.Disposable {
-    const vscodeSettingsWatcher = vscode.workspace.createFileSystemWatcher(
-      '**/.vscode/settings.json'
-    );
+    return vscode.workspace.onDidChangeConfiguration(async () => {
+      if (updateSettingsFlag.isSet()) {
+        return;
+      }
 
-    /* For some reason this handler runs upwards of three times per file save
-    so we debounce it */
-    vscodeSettingsWatcher.onDidChange(
-      debounce(async (uri: vscode.Uri) => {
-        this.outputChannel.appendLine('vscode settings changed');
-        await reinitializeExtension();
-      }, debounceInterval)
-    );
-    return vscodeSettingsWatcher;
+      this.outputChannel.appendLine('vscode settings changed');
+      await reinitializeExtension();
+    });
   }
 }

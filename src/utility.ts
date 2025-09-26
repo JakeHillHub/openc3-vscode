@@ -25,3 +25,19 @@ export function debounce<F extends (...args: any[]) => any>(
     timeout = setTimeout(later, wait);
   };
 }
+
+export class UpdateSettingsFlag {
+  private isUpdatingSettings: number = 0;
+
+  public isSet(): boolean {
+    return this.isUpdatingSettings > 0;
+  }
+
+  public set() {
+    this.isUpdatingSettings++;
+  }
+
+  public clear() {
+    this.isUpdatingSettings--;
+  }
+}
