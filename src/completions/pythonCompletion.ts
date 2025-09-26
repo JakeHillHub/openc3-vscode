@@ -6,7 +6,7 @@ import {
   argHasEnum,
   getArgEnumKey,
   TlmFieldType,
-} from './cosmos/cmdTlm';
+} from '../cosmos/cmdTlm';
 import { json } from 'stream/consumers';
 
 /* Most commands */

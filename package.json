@@ -71,6 +71,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "openc3.AutoIgnorePyi": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically add .pyi generated files to gitignore and hide in workspace"
         }
       }
     }
