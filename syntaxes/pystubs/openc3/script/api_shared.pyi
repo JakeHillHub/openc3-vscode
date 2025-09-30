@@ -2,21 +2,16 @@ from typing import Optional, Any, Dict, overload, Iterator
 
 # --- Handling Telemetry ---
 
-RAW: str = "RAW"
-CONVERTED: str = "CONVERTED"
-FORMATTED: str = "FORMATTED"
-WITH_UNITS: str = "WITH_UNITS"
-
 @overload
 def check(
     telemetry_item: str,
     comparison: Optional[str] = None,
-    type: str = CONVERTED,
+    type: str = "CONVERTED",
 ) -> None: ...
 def check(
     telemetry_item: str,
     comparison: Optional[str] = None,
-    type: str = CONVERTED,
+    type: str = "CONVERTED",
 ) -> None:
     """
     Performs a verification of a telemetry item.
@@ -72,7 +67,7 @@ def check_tolerance(
     telemetry_item: str,
     expected_value: float,
     tolerance: float,
-    type: str = CONVERTED,
+    type: str = "CONVERTED",
 ) -> None:
     """
     Checks a converted telemetry item against an expected value with a tolerance.
@@ -117,7 +112,6 @@ def check_exception(*args: Any, **kwargs: Any) -> None:
 
 # --- Delays ---
 DEFAULT_TLM_POLLING_RATE: float = 0.25
-CONVERTED: str = "CONVERTED"
 
 @overload
 def wait() -> float: ...
@@ -128,7 +122,7 @@ def wait(
     telemetry_item: str,
     timeout: float,
     polling_rate: float = DEFAULT_TLM_POLLING_RATE,
-    type: str = CONVERTED,
+    type: str = "CONVERTED",
     quiet: bool = True,
 ) -> bool: ...
 def wait(*args: Any, **kwargs: Any) -> Any:
@@ -155,7 +149,7 @@ def wait_tolerance(
     tolerance: float,
     timeout: float,
     polling_rate: float = DEFAULT_TLM_POLLING_RATE,
-    type: str = CONVERTED,
+    type: str = "CONVERTED",
     quiet: bool = True,
 ) -> bool:
     """
@@ -227,7 +221,7 @@ def wait_check(
     telemetry_item: str,
     timeout: float,
     polling_rate: float = DEFAULT_TLM_POLLING_RATE,
-    type: str = CONVERTED,
+    type: str = "CONVERTED",
 ) -> float:
     """
     Pauses the script until a telemetry item meets given criteria or times out, stopping on timeout.
@@ -249,7 +243,7 @@ def wait_check_tolerance(
     tolerance: float,
     timeout: float,
     polling_rate: float = DEFAULT_TLM_POLLING_RATE,
-    type: str = CONVERTED,
+    type: str = "CONVERTED",
 ) -> float:
     """
     Pauses the script until a telemetry item equals an expected value within a tolerance, stopping on timeout.

@@ -1,8 +1,86 @@
 from typing import Any, Dict, List, Optional, Tuple, overload
 
-
 # --- Packet Data Subscriptions ---
 
+@overload
+def tlm(telemetry_item: str, type: str = "CONVERTED") -> Any: ...
+@overload
+def tlm(
+    target_name: str, packet_name: str, item_name: str, type: str = "CONVERTED"
+) -> Any: ...
+def tlm(*args: str, **kwargs: str) -> Any:
+    """
+    Reads the specified form of a telemetry item.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+        type (str): The type of value to return (RAW, CONVERTED, FORMATTED, or WITH_UNITS).
+                    Defaults to CONVERTED.
+
+    Returns:
+        Any: The value of the telemetry item in the specified form.
+    """
+    ...
+
+@overload
+def tlm_raw(telemetry_item: str) -> Any: ...
+@overload
+def tlm_raw(target_name: str, packet_name: str, item_name: str) -> Any: ...
+def tlm_raw(*args: str) -> Any:
+    """
+    Reads the RAW form of a telemetry item.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+
+    Returns:
+        Any: The raw value of the telemetry item.
+    """
+    ...
+
+@overload
+def tlm_formatted(telemetry_item: str) -> str: ...
+@overload
+def tlm_formatted(target_name: str, packet_name: str, item_name: str) -> str: ...
+def tlm_formatted(*args: str) -> str:
+    """
+    Reads the FORMATTED form of a telemetry item.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+
+    Returns:
+        str: The formatted string value of the telemetry item.
+    """
+    ...
+
+@overload
+def tlm_with_units(telemetry_item: str) -> str: ...
+@overload
+def tlm_with_units(target_name: str, packet_name: str, item_name: str) -> str: ...
+def tlm_with_units(*args: str) -> str:
+    """
+    Reads the WITH_UNITS form of a telemetry item.
+
+    Args:
+        telemetry_item (str): The full name of the telemetry item (e.g., "INST HEALTH_STATUS TEMP1").
+        target_name (str): The name of the target.
+        packet_name (str): The name of the packet.
+        item_name (str): The name of the item.
+
+    Returns:
+        str: The string value of the telemetry item including its units.
+    """
+    ...
 
 def subscribe_packets(packets: List[List[str]]) -> int:
     """
@@ -17,7 +95,6 @@ def subscribe_packets(packets: List[List[str]]) -> int:
         int: A unique subscription ID used to retrieve the data.
     """
     ...
-
 
 @overload
 def get_packets(
@@ -41,7 +118,6 @@ def get_packets(
     """
     ...
 
-
 @overload
 def get_tlm_cnt(telemetry_packet: str) -> int: ...
 @overload
@@ -60,7 +136,6 @@ def get_tlm_cnt(*args: str) -> int:
     """
     ...
 
-
 def get_tlm_cnts(packets: List[List[str]]) -> List[int]:
     """
     Gets the receive counts for an array of telemetry packets.
@@ -73,7 +148,6 @@ def get_tlm_cnts(packets: List[List[str]]) -> List[int]:
         List[int]: A list of integers representing the receive count for each packet.
     """
     ...
-
 
 @overload
 def get_packet_derived_items(telemetry_packet: str) -> List[str]: ...
