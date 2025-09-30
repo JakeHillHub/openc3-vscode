@@ -17,6 +17,7 @@ const cmdPrefixRegex =
 const tlmPacketFieldPrefixRegex = /.*?(?:tlm|tlm_raw|tlm_formatted|tlm_with_units)\((.*)\)?/;
 const checkCmpPrefixRegex =
   /.*?(?:check|check_raw|check_formatted|check_with_units|wait_check)\((.*)\)?/;
+const checkTolPrefixRegex = /.*?(?:check_tolerance|wait_check_tolerance)\((.*)\)?/;
 
 function stripQuotes(str: string): string {
   return str.trim().replace(/['"]/g, '');
@@ -80,7 +81,12 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
 
     const checkCmpMatch = linePrefix.match(checkCmpPrefixRegex);
     if (checkCmpMatch) {
-      return this.getCheckCompletions(checkCmpMatch);
+      return this.getCheckCompletions(linePrefix, checkCmpMatch);
+    }
+
+    const checkTolMatch = linePrefix.match(checkTolPrefixRegex);
+    if (checkTolMatch) {
+      return this.getCheckTolCompletions(linePrefix, checkTolMatch);
     }
 
     const credMatch = linePrefix.match(/.*?(?:extension_credit)\((.*)\)?/);
@@ -228,22 +234,52 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
   }
 
   private getCheckCompletions(
+    linePrefix: string,
     match: RegExpMatchArray
   ): vscode.ProviderResult<vscode.CompletionItem[]> {
-    const fullArgs = this.parseArgs(match[1]);
-    const sargs = this.parseStrArgs(fullArgs[0]);
+    const sargs = this.parseStrArgs(match[1]);
     const args = sargs.args;
     const currentArgIndex = args.length;
 
     switch (currentArgIndex) {
       case 0:
-        return this.getTlmTargetsCheckInnerSyntax();
+        if (linePrefix.includes('wait')) {
+          /* Timeout is a required arg for wait check expressions */
+          return this.getTlmTargetsCheckInnerSyntax('timeout');
+        } else {
+          return this.getTlmTargetsCheckInnerSyntax();
+        }
       case 1:
         return this.getPacketsForTarget(args[0], true);
       case 2:
         return this.getFieldsForPacket(args[0], args[1], true);
       case 3:
         return this.getTlmComparisonsList(args[0], args[1], args[2], sargs.enclosedQuoteType);
+      default:
+        return undefined;
+    }
+  }
+
+  private getCheckTolCompletions(
+    linePrefix: string,
+    match: RegExpMatchArray
+  ): vscode.ProviderResult<vscode.CompletionItem[]> {
+    const sargs = this.parseStrArgs(match[1]);
+    const args = sargs.args;
+    const currentArgIndex = args.length;
+
+    switch (currentArgIndex) {
+      case 0:
+        if (linePrefix.includes('wait')) {
+          /* Timeout is a required arg for wait check expressions */
+          return this.getTlmTargetsCheckInnerSyntax('expected_value', 'tolerance', 'timeout');
+        } else {
+          return this.getTlmTargetsCheckInnerSyntax('expected_value', 'tolerance');
+        }
+      case 1:
+        return this.getPacketsForTarget(args[0], true);
+      case 2:
+        return this.getFieldsForPacket(args[0], args[1], true);
       default:
         return undefined;
     }
@@ -302,10 +338,20 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
     return targetCompletionItems;
   }
 
+  private snippetFmtArgs(args: string[], offset: number): string {
+    const fmts = [];
+    let i = offset;
+    for (const arg of args) {
+      fmts.push(`\${${i}:${arg}}`);
+      i++;
+    }
+    return fmts.join(', ');
+  }
+
   /**
    * Place cursor within quote of completion item
    */
-  private getTlmTargetsCheckInnerSyntax(): vscode.CompletionItem[] {
+  private getTlmTargetsCheckInnerSyntax(...additionalArgs: string[]): vscode.CompletionItem[] {
     const targetCompletionItems: vscode.CompletionItem[] = [];
 
     for (const targetName of this.cmdTlmDB.getTlmTargets()) {
@@ -314,7 +360,14 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
         vscode.CompletionItemKind.Variable
       );
 
-      const snippet = new vscode.SnippetString(`"${targetName}$1", \${2:timeout}`);
+      let snippet = undefined;
+      if (additionalArgs.length === 0) {
+        snippet = new vscode.SnippetString(`"${targetName}$1"`);
+      } else {
+        snippet = new vscode.SnippetString(
+          `"${targetName}$1", ${this.snippetFmtArgs(additionalArgs, 2)}`
+        );
+      }
 
       completionItem.insertText = snippet;
       completionItem.documentation = new vscode.MarkdownString(`COSMOS Target **${targetName}**`);
