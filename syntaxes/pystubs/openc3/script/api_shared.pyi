@@ -1,4 +1,4 @@
-from typing import Optional, Any, Dict, overload
+from typing import Optional, Any, Dict, overload, Iterator
 
 # --- Handling Telemetry ---
 
@@ -346,3 +346,55 @@ def load_utility(utility_filename: str) -> None:
         utility_filename (str): Name of the script file containing subroutines, including the full path.
     """
     ...
+
+# --- Script Runner Settings ---
+
+def set_line_delay(delay: float) -> None:
+    """
+    Sets the line delay in Script Runner.
+
+    Args:
+        delay (float): The amount of time Script Runner will wait between
+                       lines when executing a script, in seconds. Must be >= 0.0.
+    """
+    ...
+
+def get_line_delay() -> float:
+    """
+    Gets the line delay that Script Runner is currently using.
+
+    Returns:
+        float: The current line delay in seconds.
+    """
+    ...
+
+def set_max_output(characters: int) -> None:
+    """
+    Sets the maximum number of characters to display in Script Runner output.
+
+    Args:
+        characters (int): The maximum number of characters to output before truncating.
+    """
+    ...
+
+def get_max_output() -> int:
+    """
+    Gets the maximum number of characters to display in Script Runner output.
+
+    Returns:
+        int: The maximum number of characters.
+    """
+    ...
+
+def disable_instrumentation() -> Iterator[None]:
+    """
+    Disables instrumentation (line highlighting and exception catching) for a block of code.
+    Use with a 'with' statement.
+
+    Example:
+        with disable_instrumentation():
+            for x in range(1000):
+                # This loop will not be instrumented
+                pass
+    """
+    yield
