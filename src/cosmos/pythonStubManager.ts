@@ -3,15 +3,19 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { CosmosProjectSearch } from './config';
-import { UpdateSettingsFlag } from '../utility';
+import { triggerEditorRefresh, UpdateSettingsFlag } from '../utility';
+import { PyBuiltinStubManager } from './pythonBuiltinStubManager';
 
 export class PythonStubManager {
   private outputChannel: vscode.OutputChannel;
   private updateSettingsFlag: UpdateSettingsFlag;
+  private builtinStubManager: PyBuiltinStubManager;
 
   constructor(outputChannel: vscode.OutputChannel, updateSettingsFlag: UpdateSettingsFlag) {
     this.outputChannel = outputChannel;
     this.updateSettingsFlag = updateSettingsFlag;
+
+    this.builtinStubManager = new PyBuiltinStubManager(outputChannel);
   }
 
   public getPyStubsIgnore(): string | undefined {
@@ -21,6 +25,49 @@ export class PythonStubManager {
     }
     const stubPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'pystubs');
     return vscode.workspace.asRelativePath(stubPath);
+  }
+
+  public async probeLoadUtility(doc: vscode.TextDocument) {
+    const contents = doc.getText();
+    const loadUtilRegex = /load_utility\(["'](.*?)["']\)/g;
+    const matches = contents.match(loadUtilRegex);
+    if (!matches) {
+      return; /* No load_utility calls */
+    }
+
+    const moduleImports = [];
+    for (const match of matches) {
+      const pathRegex = /load_utility\(["'](.*?)["']\)/;
+      const pathMatch = match.match(pathRegex);
+      const path = pathMatch?.[1];
+      if (!path) {
+        continue;
+      }
+
+      const modulePath = path.split('/').join('.').replace('\.py', '');
+      const importStr = `from ${modulePath} import *`;
+      moduleImports.push(importStr);
+    }
+
+    if (moduleImports.length > 0) {
+      await this.builtinStubManager.setStubIncludes(moduleImports);
+      triggerEditorRefresh();
+    }
+  }
+
+  public createSubscriptions(): vscode.Disposable[] {
+    return [
+      vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (!editor) {
+          return;
+        }
+
+        const fileName = editor.document.fileName;
+        if (fileName.endsWith('.py')) {
+          this.probeLoadUtility(editor.document);
+        }
+      }),
+    ];
   }
 
   /**
