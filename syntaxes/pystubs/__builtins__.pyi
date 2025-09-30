@@ -1,2 +1,2 @@
 from openc3.script import *
-from openc3.api.tlm_api import *
+from openc3.api import *

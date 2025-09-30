@@ -883,6 +883,36 @@ export class CosmosCmdTlmDB {
     return packet;
   }
 
+  public getTargetPacketField(
+    targetName: string,
+    packetName: string,
+    fieldName: string
+  ): TlmField | undefined {
+    const targetPackets = this.tlmMap.get(targetName);
+    const packet = targetPackets?.get(packetName);
+    const field = packet?.fields.find((field) => field.name === fieldName);
+    return field;
+  }
+
+  public getDtypeDefault(dataType: DataType | undefined): any | undefined {
+    switch (dataType) {
+      case DataType.UINT:
+        return 0;
+      case DataType.INT:
+        return 0;
+      case DataType.FLOAT:
+        return 0.0;
+      case DataType.DERIVED:
+        return '';
+      case DataType.STRING:
+        return '';
+      case DataType.BLOCK:
+        return '';
+      default:
+        return undefined;
+    }
+  }
+
   private async getCmdTlmFileResources(filePath: string): Promise<CmdTlmResources> {
     const cSearch = new CosmosProjectSearch(this.outputChannel);
     const erbConfig = cSearch.getERBConfig(path.dirname(filePath)); /* Can fail gracefully */

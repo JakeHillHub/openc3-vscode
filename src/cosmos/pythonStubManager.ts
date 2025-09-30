@@ -67,6 +67,28 @@ export class PythonStubManager {
           this.probeLoadUtility(editor.document);
         }
       }),
+      vscode.languages.registerHoverProvider('python', {
+        provideHover(document, position, token) {
+          const range = document.getWordRangeAtPosition(position, /load_utility\(["'](.*?)["']\)/);
+          if (!range) {
+            return undefined;
+          }
+
+          const fileArg = document.getText(range).match(/load_utility\(["'](.*?)["']\)/)?.[1];
+          if (!fileArg) {
+            return undefined;
+          }
+
+          const modulePath = fileArg.split('/').join('.').replace('\.py', '');
+
+          const content = new vscode.MarkdownString();
+          content.isTrusted = true;
+
+          content.appendCodeblock(`from ${modulePath} import *`, 'python');
+
+          return new vscode.Hover(content, range);
+        },
+      }),
     ];
   }
 
@@ -78,6 +100,15 @@ export class PythonStubManager {
     await this.configureAPIStubs();
     await this.configureDiagnosticSeverity();
     await this.addAllExistingPluginStubs(ignoredDirsPattern);
+
+    setTimeout(() => {
+      if (vscode.window.activeTextEditor) {
+        const fileName = vscode.window.activeTextEditor.document.fileName;
+        if (fileName.endsWith('.py')) {
+          this.probeLoadUtility(vscode.window.activeTextEditor.document);
+        }
+      }
+    }, 10000); /* Hopefully pull in activatation without requiring active switch - not extra important, but makes the initial load "cleaner" */
   }
 
   /**
@@ -107,7 +138,7 @@ export class PythonStubManager {
     const filesExcluded = config.get('files.exclude', {}) as any;
 
     this.updateSettingsFlag.set();
-    const hiddenPatterns = ['**/pystubs', '**/*.pyi'];
+    const hiddenPatterns = ['**/pystubs'];
     if (hidden) {
       for (const pattern of hiddenPatterns) {
         filesExcluded[pattern] = true;

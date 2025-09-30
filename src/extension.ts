@@ -40,8 +40,14 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   const editorFileWatchers = editorFileManager.createOpenC3Watchers(cmdTlmDB);
+  const erbViewCmd = editorFileManager.createERBViewCommand();
 
-  subscribe(pythonProvider, ...editorFileWatchers, ...pythonStubManager.createSubscriptions());
+  subscribe(
+    pythonProvider,
+    erbViewCmd,
+    ...editorFileWatchers,
+    ...pythonStubManager.createSubscriptions()
+  );
 
   const reinitializeExtension = async () => {
     /* Run longer running initialization tasks - can be used to rebuild context after settings.json change */
