@@ -314,7 +314,8 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
         vscode.CompletionItemKind.Variable
       );
 
-      const snippet = new vscode.SnippetString(`"${targetName}$0", `);
+      const snippet = new vscode.SnippetString(`"${targetName}$1", \${2:timeout}`);
+
       completionItem.insertText = snippet;
       completionItem.documentation = new vscode.MarkdownString(`COSMOS Target **${targetName}**`);
       targetCompletionItems.push(completionItem);
