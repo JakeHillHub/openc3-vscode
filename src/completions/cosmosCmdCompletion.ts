@@ -4,6 +4,7 @@ interface CompletionArgument {
   title: string;
   options: string[];
   required: boolean;
+  optionTransformer?: (linePrefix: string, arg: CompletionArgument) => string[] | undefined;
 }
 
 interface CompletionDefinition {
@@ -50,6 +51,41 @@ const typeMaxConstants = [
 ];
 const typeDefaultConstants = [...typeMinConstants, ...typeMaxConstants];
 
+function removeErb(linePrefix: string): string {
+  const argRegex = /<%.*?%>/g; /* Handle erb substitution */
+  return linePrefix.replace(argRegex, '');
+}
+
+function getArgumentIndex(linePrefix: string): number {
+  const sanitized = removeErb(linePrefix);
+  const split = sanitized.split(' ');
+  const final = split.filter((item) => item !== '');
+  return final.length - 1;
+}
+
+function deriveBitSize(linePrefix: string): string {
+  const sanitized = removeErb(linePrefix);
+  if (sanitized.startsWith('APPEND')) {
+    /* Bit size is third parameter (index 2) */
+    const split = sanitized.split(' ');
+    return split[2];
+  } else {
+    /* Regular ID_PARAMETER or PARAMETER */
+    /* Bit size is fourth parameter (index 3) */
+    const split = sanitized.split(' ');
+    return split[3];
+  }
+}
+
+function magicalTypeConstants(linePrefix: string, arg: CompletionArgument): string[] | undefined {
+  const bitSizeStr = deriveBitSize(linePrefix);
+  const opts = arg.options.filter((option) => option.includes(bitSizeStr));
+  if (opts.length === 0) {
+    return undefined;
+  }
+  return opts.sort();
+}
+
 const contextualDefines: ContextualDefinition[] = [
   {
     match: /(?:APPEND_PARAMETER|PARAMETER)/g,
@@ -61,16 +97,19 @@ const contextualDefines: ContextualDefinition[] = [
           {
             title: 'MINIMUM_VALUE',
             options: typeMinConstants,
+            optionTransformer: magicalTypeConstants,
             required: true,
           },
           {
             title: 'MAXIMUM_VALUE',
             options: typeMaxConstants,
+            optionTransformer: magicalTypeConstants,
             required: true,
           },
           {
             title: 'DEFAULT_VALUE',
             options: typeDefaultConstants,
+            optionTransformer: magicalTypeConstants,
             required: true,
           },
           {
@@ -165,6 +204,7 @@ const completionDefines: CompletionDefinition[] = [
 
 export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
   private outputChannel: vscode.OutputChannel;
+  /* Completions that require no line context */
   private topLevelCompletions: vscode.CompletionItem[] = [];
   private triggerChars: Set<string> = new Set<string>();
 
@@ -219,7 +259,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
     return `\${${index}:${arg.title}}`;
   }
 
-  private generateRequiredTabstopArgs(args: CompletionArgument[]): string {
+  private generateNoCtxRequiredTabstopArgs(args: CompletionArgument[]): string {
     const tabstopArgs: string[] = [];
 
     let index = 1;
@@ -232,11 +272,41 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
     return tabstopArgs.join(' ');
   }
 
+  private generateCtxTabstopArg(
+    linePrefix: string,
+    arg: CompletionArgument,
+    index: number
+  ): string {
+    if (!arg.optionTransformer) {
+      /* Default if no transformer is defined */
+      return this.generateTabstopArg(arg, index);
+    }
+
+    const options = arg.optionTransformer(linePrefix, arg);
+    if (options !== undefined && options.length > 1) {
+      return `\${${index}|${options.join(',')}|}`;
+    }
+    return this.generateTabstopArg(arg, index);
+  }
+
+  private generateCtxRequiredTabstopArgs(linePrefix: string, args: CompletionArgument[]): string {
+    const tabstopArgs: string[] = [];
+
+    let index = 1;
+    for (const arg of args) {
+      if (arg.required) {
+        tabstopArgs.push(this.generateCtxTabstopArg(linePrefix, arg, index));
+        index++;
+      }
+    }
+    return tabstopArgs.join(' ');
+  }
+
   private generateCompletionFromDefinition(d: CompletionDefinition): vscode.CompletionItem {
     const item = new vscode.CompletionItem(d.title, vscode.CompletionItemKind.Snippet);
     item.detail = `(snippet) Inserts a full ${d.title} definition.`;
 
-    const argsString = this.generateRequiredTabstopArgs(d.args);
+    const argsString = this.generateNoCtxRequiredTabstopArgs(d.args);
     const snippet = new vscode.SnippetString(`${d.title} ${argsString}`);
 
     item.insertText = snippet;
@@ -281,7 +351,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
           continue;
         }
 
-        const currArgIndex = this.getArgumentIndex(linePrefix);
+        const currArgIndex = getArgumentIndex(linePrefix);
         const numRequired = this.getNumRequiredArgs(choice);
 
         /* In the optional contextual range */
@@ -295,7 +365,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
           return completionItems;
         } else {
           /* Contextual required range */
-          const tabstopArgs = this.generateRequiredTabstopArgs(choice.args);
+          const tabstopArgs = this.generateCtxRequiredTabstopArgs(linePrefix, choice.args);
           const snippet = new vscode.SnippetString(`${tabstopArgs}`);
           const completionItem = new vscode.CompletionItem(
             choice.title,
@@ -330,14 +400,6 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
     return numRequired;
   }
 
-  private getArgumentIndex(linePrefix: string): number {
-    const argRegex = /<%.*?%>/g; /* Handle erb substitution */
-    const sanitized = linePrefix.replace(argRegex, 'erb');
-    const split = sanitized.split(' ');
-    const final = split.filter((item) => item !== '');
-    return final.length - 1;
-  }
-
   private computContextualCompletions(linePrefix: string): vscode.CompletionItem[] {
     /* First find primary definition */
     const definition = this.findDefinitionFromPrefix(linePrefix);
@@ -354,7 +416,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
       return completionItems;
     }
 
-    const currentArgIndex = this.getArgumentIndex(linePrefix);
+    const currentArgIndex = getArgumentIndex(linePrefix);
     if (currentArgIndex >= definition.args.length) {
       return completionItems;
     }
