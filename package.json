@@ -30,7 +30,6 @@
           "plugin.txt",
           "tlm.txt",
           "erb-target.txt",
-          "erb-cmd.txt",
           "erb-tlm.txt",
           "erb-plugin.txt"
         ],
@@ -42,7 +41,8 @@
           "OpenC3 Commands"
         ],
         "filenames": [
-          "cmd.txt"
+          "cmd.txt",
+          "erb-cmd.txt"
         ],
         "configuration": "./syntaxes/openc3-language-configuration.json"
       }

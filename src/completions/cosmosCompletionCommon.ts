@@ -2,7 +2,12 @@ export interface CompletionArgument {
   title: string;
   options: string[];
   required: boolean;
-  optionTransformer?: (linePrefix: string, arg: CompletionArgument) => string[] | undefined;
+  /* Generate highly custom suggestions for an individual field */
+  optionTransformer?: (
+    linePrefix: string,
+    arg: CompletionArgument,
+    index: number
+  ) => string | undefined;
 }
 
 export interface CompletionDefinition {
@@ -50,13 +55,14 @@ export const typeMaxConstants = [
 ];
 export const typeDefaultConstants = [...typeMinConstants, ...typeMaxConstants];
 
-function removeErb(linePrefix: string): string {
-  const argRegex = /<%.*?%>/g; /* Handle erb substitution */
-  return linePrefix.replace(argRegex, '');
+function sanitizeErbStrs(linePrefix: string): string {
+  const erbRegex = /<%.*?%>/g; /* Handle erb substitution */
+  const strRegex = /".*?"/g;
+  return linePrefix.replace(erbRegex, 'erb').replace(strRegex, 'str');
 }
 
 function deriveBitSize(linePrefix: string): string {
-  const sanitized = removeErb(linePrefix);
+  const sanitized = sanitizeErbStrs(linePrefix);
   if (sanitized.startsWith('APPEND')) {
     /* Bit size is third parameter (index 2) */
     const split = sanitized.split(' ');
@@ -69,8 +75,19 @@ function deriveBitSize(linePrefix: string): string {
   }
 }
 
+function deriveType(linePrefix: string): string {
+  const sanitized = sanitizeErbStrs(linePrefix);
+  if (sanitized.startsWith('APPEND')) {
+    const split = sanitized.split(' ');
+    return split[3];
+  } else {
+    const split = sanitized.split(' ');
+    return split[4];
+  }
+}
+
 export function getArgumentIndex(linePrefix: string): number {
-  const sanitized = removeErb(linePrefix);
+  const sanitized = sanitizeErbStrs(linePrefix);
   const split = sanitized.split(' ');
   const final = split.filter((item) => item !== '');
   return final.length - 1;
@@ -78,14 +95,19 @@ export function getArgumentIndex(linePrefix: string): number {
 
 export function magicalTypeConstants(
   linePrefix: string,
-  arg: CompletionArgument
-): string[] | undefined {
+  arg: CompletionArgument,
+  index: number
+): string | undefined {
   const bitSizeStr = deriveBitSize(linePrefix);
-  const opts = arg.options.filter((option) => option.includes(bitSizeStr));
+  const t = deriveType(linePrefix);
+  const opts = arg.options.filter((option) => option.includes(bitSizeStr) && option.includes(t));
   if (opts.length === 0) {
     return undefined;
   }
-  return opts.sort();
+  return `\${${index}|${opts.sort().reverse().join(',')}|}`;
 }
 
-export function idTypeConstants()
+export function idTypeConstants(..._: unknown[]): string | undefined {
+  /* Generate all id type constants with the same tabstop (1) so they update simultaneously */
+  return `\${${1}| |}`;
+}

@@ -5,7 +5,22 @@
   "fileTypes": [".txt"],
   "patterns": [
     {
-      "begin": "<%=?",
+      "name": "source.ruby.embedded.erb.target-name.openc3-cmd",
+      "match": "(<%=\\s*)(target_name)(\\s*%>)",
+      "captures": {
+        "1": {
+          "name": "keyword.control.openc3-cmd"
+        },
+        "2": {
+          "name": "markup.italic.openc3-cmd"
+        },
+        "3": {
+          "name": "keyword.control.openc3-cmd"
+        }
+      }
+    },
+    {
+      "begin": "<%=?(?:(target_name)|.*?)",
       "end": "%>",
       "name": "source.ruby.embedded.erb",
       "contentName": "source.ruby",
@@ -35,7 +50,15 @@
     },
     {
       "name": "entity.name.type.openc3-cmd",
-      "match": "\\b(U?INT|FLOAT|BLOCK|STRING|DERIVED|STATE|(?:READ|WRITE)_CONVERSION|DISABLE_MESSAGES)\\b"
+      "match": "\\b(U?INT|FLOAT|BLOCK|STRING|DERIVED|(?:READ|WRITE)_CONVERSION|DISABLE_MESSAGES)\\b"
+    },
+    {
+      "name": "entity.name.type.openc3-cmd",
+      "match": "\\b(STATE|FORMAT_STRING|UNITS|DESCRIPTION|META|OVERLAP|KEY|VARIABLE_BIT_SIZE|OBFUSCATE|REQUIRED|MINIMUM_VALUE|MAXIMUM_VALUE|DEFAULT_VALUE|WRITE_CONVERSION|POLY_WRITE_CONVERSION|SEG_POLY_WRITE_CONVERSION|OVERFLOW)\\b"
+    },
+    {
+      "name": "entity.name.function.openc3-cmd",
+      "match": "\\b(GENERIC_WRITE_CONVERSION_START|GENERIC_WRITE_CONVERSION_END)\\b"
     },
     {
       "name": "constant.character.openc3-cmd",
