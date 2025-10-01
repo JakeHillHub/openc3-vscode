@@ -1,92 +1,7 @@
 import * as vscode from 'vscode';
+import * as common from './cosmosCompletionCommon';
 
-interface CompletionArgument {
-  title: string;
-  options: string[];
-  required: boolean;
-  optionTransformer?: (linePrefix: string, arg: CompletionArgument) => string[] | undefined;
-}
-
-interface CompletionDefinition {
-  title: string;
-  args: CompletionArgument[];
-}
-
-interface ContextualChoice {
-  condition: RegExp;
-  title: string;
-  args: CompletionArgument[];
-}
-
-interface ContextualDefinition {
-  match: RegExp;
-  choices: ContextualChoice[];
-}
-
-const endianOpts = ['BIG_ENDIAN', 'LITTLE_ENDIAN'];
-const typeConstants = ['INT', 'UINT', 'FLOAT', 'DERIVED', 'STRING', 'BLOCK'];
-const typeMinConstants = [
-  'MIN_UINT8',
-  'MIN_INT8',
-  'MIN_UINT16',
-  'MIN_INT16',
-  'MIN_UINT32',
-  'MIN_INT32',
-  'MIN_UINT64',
-  'MIN_INT64',
-  'MIN_FLOAT32',
-  'MIN_FLOAT64',
-];
-const typeMaxConstants = [
-  'MAX_UINT8',
-  'MAX_INT8',
-  'MAX_UINT16',
-  'MAX_INT16',
-  'MAX_UINT32',
-  'MAX_INT32',
-  'MAX_UINT64',
-  'MAX_INT64',
-  'MAX_FLOAT32',
-  'MAX_FLOAT64',
-];
-const typeDefaultConstants = [...typeMinConstants, ...typeMaxConstants];
-
-function removeErb(linePrefix: string): string {
-  const argRegex = /<%.*?%>/g; /* Handle erb substitution */
-  return linePrefix.replace(argRegex, '');
-}
-
-function getArgumentIndex(linePrefix: string): number {
-  const sanitized = removeErb(linePrefix);
-  const split = sanitized.split(' ');
-  const final = split.filter((item) => item !== '');
-  return final.length - 1;
-}
-
-function deriveBitSize(linePrefix: string): string {
-  const sanitized = removeErb(linePrefix);
-  if (sanitized.startsWith('APPEND')) {
-    /* Bit size is third parameter (index 2) */
-    const split = sanitized.split(' ');
-    return split[2];
-  } else {
-    /* Regular ID_PARAMETER or PARAMETER */
-    /* Bit size is fourth parameter (index 3) */
-    const split = sanitized.split(' ');
-    return split[3];
-  }
-}
-
-function magicalTypeConstants(linePrefix: string, arg: CompletionArgument): string[] | undefined {
-  const bitSizeStr = deriveBitSize(linePrefix);
-  const opts = arg.options.filter((option) => option.includes(bitSizeStr));
-  if (opts.length === 0) {
-    return undefined;
-  }
-  return opts.sort();
-}
-
-const contextualDefines: ContextualDefinition[] = [
+const contextualDefines: common.ContextualDefinition[] = [
   {
     match: /(?:APPEND_PARAMETER|PARAMETER)/g,
     choices: [
@@ -96,20 +11,20 @@ const contextualDefines: ContextualDefinition[] = [
         args: [
           {
             title: 'MINIMUM_VALUE',
-            options: typeMinConstants,
-            optionTransformer: magicalTypeConstants,
+            options: common.typeMinConstants,
+            optionTransformer: common.magicalTypeConstants,
             required: true,
           },
           {
             title: 'MAXIMUM_VALUE',
-            options: typeMaxConstants,
-            optionTransformer: magicalTypeConstants,
+            options: common.typeMaxConstants,
+            optionTransformer: common.magicalTypeConstants,
             required: true,
           },
           {
             title: 'DEFAULT_VALUE',
-            options: typeDefaultConstants,
-            optionTransformer: magicalTypeConstants,
+            options: common.typeDefaultConstants,
+            optionTransformer: common.magicalTypeConstants,
             required: true,
           },
           {
@@ -119,7 +34,7 @@ const contextualDefines: ContextualDefinition[] = [
           },
           {
             title: 'ENDIANNESS',
-            options: endianOpts,
+            options: common.endianOpts,
             required: false,
           },
         ],
@@ -140,7 +55,67 @@ const contextualDefines: ContextualDefinition[] = [
           },
           {
             title: 'ENDIANNESS',
-            options: endianOpts,
+            options: common.endianOpts,
+            required: false,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    match: /(?:APPEND_ID_PARAMETER|ID_PARAMETER)/g,
+    choices: [
+      {
+        condition: /(UINT|INT|FLOAT|DERIVED)/g,
+        title: 'INT/FLOAT/DERIVED Parameters',
+        args: [
+          {
+            title: 'ID_MINIMUM_VALUE',
+            options: common.typeMinConstants,
+            optionTransformer: common.magicalTypeConstants,
+            required: true,
+          },
+          {
+            title: 'ID_MAXIMUM_VALUE',
+            options: common.typeMaxConstants,
+            optionTransformer: common.magicalTypeConstants,
+            required: true,
+          },
+          {
+            title: 'ID_VALUE',
+            options: common.typeDefaultConstants,
+            optionTransformer: common.magicalTypeConstants,
+            required: true,
+          },
+          {
+            title: 'DESCRIPTION',
+            options: ['""'],
+            required: false,
+          },
+          {
+            title: 'ENDIANNESS',
+            options: common.endianOpts,
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /(STRING|BLOCK)/g,
+        title: 'STRING/BLOCK Parameters',
+        args: [
+          {
+            title: 'ID_STR_VALUE',
+            options: ['""'],
+            required: true,
+          },
+          {
+            title: 'DESCRIPTION',
+            options: ['""'],
+            required: false,
+          },
+          {
+            title: 'ENDIANNESS',
+            options: common.endianOpts,
             required: false,
           },
         ],
@@ -149,7 +124,48 @@ const contextualDefines: ContextualDefinition[] = [
   },
 ];
 
-const completionDefines: CompletionDefinition[] = [
+const commonParamRequiredArgs = [
+  {
+    title: 'NAME',
+    options: [''],
+    required: true,
+  },
+  {
+    title: 'BIT_OFFSET',
+    options: [''],
+    required: true,
+  },
+  {
+    title: 'BIT_SIZE',
+    options: common.frequentlyUsedBitSize,
+    required: true,
+  },
+  {
+    title: 'DATA_TYPE',
+    options: common.typeConstants,
+    required: true,
+  },
+];
+
+const commonAppendParamRequiredArgs = [
+  {
+    title: 'NAME',
+    options: [''],
+    required: true,
+  },
+  {
+    title: 'BIT_SIZE',
+    options: common.frequentlyUsedBitSize,
+    required: true,
+  },
+  {
+    title: 'DATA_TYPE',
+    options: common.typeConstants,
+    required: true,
+  },
+];
+
+const completionDefines: common.CompletionDefinition[] = [
   {
     title: 'COMMAND',
     args: [
@@ -165,7 +181,7 @@ const completionDefines: CompletionDefinition[] = [
       },
       {
         title: 'ENDIANNESS',
-        options: endianOpts,
+        options: common.endianOpts,
         required: true,
       },
       {
@@ -177,28 +193,19 @@ const completionDefines: CompletionDefinition[] = [
   },
   {
     title: 'PARAMETER',
-    args: [
-      {
-        title: 'NAME',
-        options: [''],
-        required: true,
-      },
-      {
-        title: 'BIT_OFFSET',
-        options: [''],
-        required: true,
-      },
-      {
-        title: 'BIT_SIZE',
-        options: [''],
-        required: true,
-      },
-      {
-        title: 'DATA_TYPE',
-        options: typeConstants,
-        required: true,
-      },
-    ],
+    args: commonParamRequiredArgs,
+  },
+  {
+    title: 'ID_PARAMETER',
+    args: commonParamRequiredArgs,
+  },
+  {
+    title: 'APPEND_PARAMETER',
+    args: commonAppendParamRequiredArgs,
+  },
+  {
+    title: 'APPEND_ID_PARAMETER',
+    args: commonAppendParamRequiredArgs,
   },
 ];
 
@@ -242,7 +249,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
     return undefined;
   }
 
-  private generateTabstopArg(arg: CompletionArgument, index: number): string {
+  private generateTabstopArg(arg: common.CompletionArgument, index: number): string {
     if (arg.options.length > 1) {
       return `\${${index}|${arg.options.join(',')}|}`;
     }
@@ -259,7 +266,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
     return `\${${index}:${arg.title}}`;
   }
 
-  private generateNoCtxRequiredTabstopArgs(args: CompletionArgument[]): string {
+  private generateNoCtxRequiredTabstopArgs(args: common.CompletionArgument[]): string {
     const tabstopArgs: string[] = [];
 
     let index = 1;
@@ -274,7 +281,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
 
   private generateCtxTabstopArg(
     linePrefix: string,
-    arg: CompletionArgument,
+    arg: common.CompletionArgument,
     index: number
   ): string {
     if (!arg.optionTransformer) {
@@ -289,7 +296,10 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
     return this.generateTabstopArg(arg, index);
   }
 
-  private generateCtxRequiredTabstopArgs(linePrefix: string, args: CompletionArgument[]): string {
+  private generateCtxRequiredTabstopArgs(
+    linePrefix: string,
+    args: common.CompletionArgument[]
+  ): string {
     const tabstopArgs: string[] = [];
 
     let index = 1;
@@ -302,7 +312,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
     return tabstopArgs.join(' ');
   }
 
-  private generateCompletionFromDefinition(d: CompletionDefinition): vscode.CompletionItem {
+  private generateCompletionFromDefinition(d: common.CompletionDefinition): vscode.CompletionItem {
     const item = new vscode.CompletionItem(d.title, vscode.CompletionItemKind.Snippet);
     item.detail = `(snippet) Inserts a full ${d.title} definition.`;
 
@@ -321,7 +331,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
     }
   }
 
-  private createOptionalTabstopArg(currentArg: CompletionArgument): vscode.CompletionItem {
+  private createOptionalTabstopArg(currentArg: common.CompletionArgument): vscode.CompletionItem {
     const tabstopArg = this.generateTabstopArg(currentArg, 1); /* Always at tabstop index 1 */
     const completionItem = new vscode.CompletionItem(
       currentArg.title,
@@ -333,7 +343,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
   }
 
   private matchContextualDefinition(
-    primaryDefinition: CompletionDefinition,
+    primaryDefinition: common.CompletionDefinition,
     linePrefix: string
   ): vscode.CompletionItem[] {
     const completionItems: vscode.CompletionItem[] = [];
@@ -351,7 +361,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
           continue;
         }
 
-        const currArgIndex = getArgumentIndex(linePrefix);
+        const currArgIndex = common.getArgumentIndex(linePrefix);
         const numRequired = this.getNumRequiredArgs(choice);
 
         /* In the optional contextual range */
@@ -380,7 +390,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
     return completionItems;
   }
 
-  private findDefinitionFromPrefix(linePrefix: string): CompletionDefinition | undefined {
+  private findDefinitionFromPrefix(linePrefix: string): common.CompletionDefinition | undefined {
     for (const completionDefinition of completionDefines) {
       if (linePrefix.startsWith(completionDefinition.title)) {
         return completionDefinition;
@@ -390,7 +400,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
     return undefined;
   }
 
-  private getNumRequiredArgs(definition: CompletionDefinition | ContextualChoice) {
+  private getNumRequiredArgs(definition: common.CompletionDefinition | common.ContextualChoice) {
     let numRequired = 0;
     for (const arg of definition.args) {
       if (arg.required) {
@@ -416,7 +426,7 @@ export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
       return completionItems;
     }
 
-    const currentArgIndex = getArgumentIndex(linePrefix);
+    const currentArgIndex = common.getArgumentIndex(linePrefix);
     if (currentArgIndex >= definition.args.length) {
       return completionItems;
     }
