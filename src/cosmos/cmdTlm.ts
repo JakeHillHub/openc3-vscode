@@ -894,7 +894,8 @@ export class CosmosCmdTlmDB {
     return field;
   }
 
-  public getDtypeDefault(dataType: DataType | undefined): any | undefined {
+  public deriveTlmFieldDefault(field: TlmField | undefined): any | undefined {
+    const dataType = field?.dataType;
     switch (dataType) {
       case DataType.UINT:
         return 0;

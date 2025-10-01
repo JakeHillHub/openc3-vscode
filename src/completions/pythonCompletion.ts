@@ -7,7 +7,6 @@ import {
   getArgEnumKey,
   TlmFieldType,
 } from '../cosmos/cmdTlm';
-import { json } from 'stream/consumers';
 
 /* Most commands */
 const cmdPrefixRegex =
@@ -87,11 +86,6 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
     const checkTolMatch = linePrefix.match(checkTolPrefixRegex);
     if (checkTolMatch) {
       return this.getCheckTolCompletions(linePrefix, checkTolMatch);
-    }
-
-    const credMatch = linePrefix.match(/.*?(?:extension_credit)\((.*)\)?/);
-    if (credMatch) {
-      return [newFieldCompletion('Created By', '"Jake Hill"', 'September 2025')];
     }
 
     return undefined;
@@ -189,6 +183,14 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
     return undefined;
   }
 
+  private quoteVal(val: string, enclosedQuoteType: string): string {
+    if (enclosedQuoteType === '"') {
+      return `'${val}'`;
+    } else {
+      return `"${val}"`;
+    }
+  }
+
   private invQuote(quoteType: string): string {
     if (quoteType === '"') {
       return "'";
@@ -204,17 +206,18 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
     enclosedQuoteType: string
   ): vscode.CompletionItem[] {
     const field = this.cmdTlmDB.getTargetPacketField(targetName, packetName, fieldName);
-    const defaultValue = this.cmdTlmDB.getDtypeDefault(field?.dataType);
+    const defaultValue = this.cmdTlmDB.deriveTlmFieldDefault(field);
 
     const comparisons = ['==', '>=', '<=', '!=', '>', '<'];
     const completionItems = [];
 
-    if (field === undefined || defaultValue === undefined) {
+    if (field === undefined || field?.enumValues.size !== 0 || defaultValue === undefined) {
       for (const comparison of comparisons) {
         completionItems.push(newFieldCompletion(comparison, comparison, comparison));
       }
       return completionItems;
     }
+
     for (const comparison of comparisons) {
       const item = new vscode.CompletionItem(comparison, vscode.CompletionItemKind.Operator);
       let snippet;
@@ -229,6 +232,26 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
 
       item.insertText = snippet;
       completionItems.push(item);
+    }
+    return completionItems;
+  }
+
+  private getTlmFieldEnumValues(
+    targetName: string,
+    packetName: string,
+    fieldName: string,
+    enclosedQuoteType: string
+  ): vscode.CompletionItem[] {
+    const field = this.cmdTlmDB.getTargetPacketField(targetName, packetName, fieldName);
+    if (field === undefined || field?.enumValues.size === 0) {
+      return [];
+    }
+
+    const completionItems = [];
+    for (const [enumName, _] of field.enumValues.entries()) {
+      completionItems.push(
+        newFieldCompletion(enumName, this.quoteVal(enumName, enclosedQuoteType), enumName)
+      );
     }
     return completionItems;
   }
@@ -255,6 +278,8 @@ export class PythonCompletionProvider implements vscode.CompletionItemProvider {
         return this.getFieldsForPacket(args[0], args[1], true);
       case 3:
         return this.getTlmComparisonsList(args[0], args[1], args[2], sargs.enclosedQuoteType);
+      case 4:
+        return this.getTlmFieldEnumValues(args[0], args[1], args[2], sargs.enclosedQuoteType);
       default:
         return undefined;
     }

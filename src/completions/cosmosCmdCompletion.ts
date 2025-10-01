@@ -1,0 +1,370 @@
+import * as vscode from 'vscode';
+
+interface CompletionArgument {
+  title: string;
+  options: string[];
+  required: boolean;
+}
+
+interface CompletionDefinition {
+  title: string;
+  args: CompletionArgument[];
+}
+
+interface ContextualChoice {
+  condition: RegExp;
+  title: string;
+  args: CompletionArgument[];
+}
+
+interface ContextualDefinition {
+  match: RegExp;
+  choices: ContextualChoice[];
+}
+
+const endianOpts = ['BIG_ENDIAN', 'LITTLE_ENDIAN'];
+const typeConstants = ['INT', 'UINT', 'FLOAT', 'DERIVED', 'STRING', 'BLOCK'];
+const typeMinConstants = [
+  'MIN_UINT8',
+  'MIN_INT8',
+  'MIN_UINT16',
+  'MIN_INT16',
+  'MIN_UINT32',
+  'MIN_INT32',
+  'MIN_UINT64',
+  'MIN_INT64',
+  'MIN_FLOAT32',
+  'MIN_FLOAT64',
+];
+const typeMaxConstants = [
+  'MAX_UINT8',
+  'MAX_INT8',
+  'MAX_UINT16',
+  'MAX_INT16',
+  'MAX_UINT32',
+  'MAX_INT32',
+  'MAX_UINT64',
+  'MAX_INT64',
+  'MAX_FLOAT32',
+  'MAX_FLOAT64',
+];
+const typeDefaultConstants = [...typeMinConstants, ...typeMaxConstants];
+
+const contextualDefines: ContextualDefinition[] = [
+  {
+    match: /(?:APPEND_PARAMETER|PARAMETER)/g,
+    choices: [
+      {
+        condition: /(UINT|INT|FLOAT|DERIVED)/g,
+        title: 'INT/FLOAT/DERIVED Parameters',
+        args: [
+          {
+            title: 'MINIMUM_VALUE',
+            options: typeMinConstants,
+            required: true,
+          },
+          {
+            title: 'MAXIMUM_VALUE',
+            options: typeMaxConstants,
+            required: true,
+          },
+          {
+            title: 'DEFAULT_VALUE',
+            options: typeDefaultConstants,
+            required: true,
+          },
+          {
+            title: 'DESCRIPTION',
+            options: ['""'],
+            required: false,
+          },
+          {
+            title: 'ENDIANNESS',
+            options: endianOpts,
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /(STRING|BLOCK)/g,
+        title: 'STRING/BLOCK Parameters',
+        args: [
+          {
+            title: 'DEFAULT_VALUE',
+            options: ['""'],
+            required: true,
+          },
+          {
+            title: 'DESCRIPTION',
+            options: ['""'],
+            required: false,
+          },
+          {
+            title: 'ENDIANNESS',
+            options: endianOpts,
+            required: false,
+          },
+        ],
+      },
+    ],
+  },
+];
+
+const completionDefines: CompletionDefinition[] = [
+  {
+    title: 'COMMAND',
+    args: [
+      {
+        title: 'TARGET',
+        options: ['<%= target_name %>'],
+        required: true,
+      },
+      {
+        title: 'COMMAND_NAME',
+        options: [''],
+        required: true,
+      },
+      {
+        title: 'ENDIANNESS',
+        options: endianOpts,
+        required: true,
+      },
+      {
+        title: 'DESCRIPTION',
+        options: ['""'],
+        required: false,
+      },
+    ],
+  },
+  {
+    title: 'PARAMETER',
+    args: [
+      {
+        title: 'NAME',
+        options: [''],
+        required: true,
+      },
+      {
+        title: 'BIT_OFFSET',
+        options: [''],
+        required: true,
+      },
+      {
+        title: 'BIT_SIZE',
+        options: [''],
+        required: true,
+      },
+      {
+        title: 'DATA_TYPE',
+        options: typeConstants,
+        required: true,
+      },
+    ],
+  },
+];
+
+export class CosmosCmdCompletion implements vscode.CompletionItemProvider {
+  private outputChannel: vscode.OutputChannel;
+  private topLevelCompletions: vscode.CompletionItem[] = [];
+  private triggerChars: Set<string> = new Set<string>();
+
+  constructor(outputChannel: vscode.OutputChannel) {
+    this.outputChannel = outputChannel;
+
+    this.generateCompletions();
+    this.outputChannel.appendLine(`Created ${this.topLevelCompletions.length} cmd completions`);
+  }
+
+  public getTriggerChars(): string[] {
+    /* Add space char to trigger chars */
+    return [...Array.from(this.triggerChars), ' '].sort();
+  }
+
+  public provideCompletionItems(
+    document: vscode.TextDocument,
+    position: vscode.Position
+  ): vscode.ProviderResult<vscode.CompletionItem[]> {
+    const line = document.lineAt(position.line);
+
+    let linePrefix = document.getText(new vscode.Range(line.range.start, position));
+    linePrefix = linePrefix.trim();
+
+    /* On first char typed */
+    if (linePrefix.length === 1 && this.triggerChars.has(linePrefix[0])) {
+      return this.topLevelCompletions;
+    }
+
+    /* When extra info starts to get appended to the required params of a line */
+    if (position.character === line.text.length) {
+      return this.computContextualCompletions(linePrefix);
+    }
+
+    return undefined;
+  }
+
+  private generateTabstopArg(arg: CompletionArgument, index: number): string {
+    if (arg.options.length > 1) {
+      return `\${${index}|${arg.options.join(',')}|}`;
+    }
+
+    const placeholder = arg.options[0] || '';
+    if (placeholder === '""' || placeholder === "''") {
+      return `"\${${index}}"`;
+    }
+
+    if (placeholder) {
+      return `\${${index}:${placeholder}}`;
+    }
+
+    return `\${${index}:${arg.title}}`;
+  }
+
+  private generateRequiredTabstopArgs(args: CompletionArgument[]): string {
+    const tabstopArgs: string[] = [];
+
+    let index = 1;
+    for (const arg of args) {
+      if (arg.required) {
+        tabstopArgs.push(this.generateTabstopArg(arg, index));
+        index++;
+      }
+    }
+    return tabstopArgs.join(' ');
+  }
+
+  private generateCompletionFromDefinition(d: CompletionDefinition): vscode.CompletionItem {
+    const item = new vscode.CompletionItem(d.title, vscode.CompletionItemKind.Snippet);
+    item.detail = `(snippet) Inserts a full ${d.title} definition.`;
+
+    const argsString = this.generateRequiredTabstopArgs(d.args);
+    const snippet = new vscode.SnippetString(`${d.title} ${argsString}`);
+
+    item.insertText = snippet;
+    return item;
+  }
+
+  private generateCompletions() {
+    for (const completionDefinition of completionDefines) {
+      this.topLevelCompletions.push(this.generateCompletionFromDefinition(completionDefinition));
+      /* Add first char of title to trigger set */
+      this.triggerChars.add(completionDefinition.title[0]);
+    }
+  }
+
+  private createOptionalTabstopArg(currentArg: CompletionArgument): vscode.CompletionItem {
+    const tabstopArg = this.generateTabstopArg(currentArg, 1); /* Always at tabstop index 1 */
+    const completionItem = new vscode.CompletionItem(
+      currentArg.title,
+      vscode.CompletionItemKind.Snippet
+    );
+    const snippet = new vscode.SnippetString(tabstopArg);
+    completionItem.insertText = snippet;
+    return completionItem;
+  }
+
+  private matchContextualDefinition(
+    primaryDefinition: CompletionDefinition,
+    linePrefix: string
+  ): vscode.CompletionItem[] {
+    const completionItems: vscode.CompletionItem[] = [];
+
+    const numPrimaryArgs = primaryDefinition.args.length;
+
+    for (const contextualDefinition of contextualDefines) {
+      const match = linePrefix.match(contextualDefinition.match);
+      if (!match) {
+        continue;
+      }
+
+      for (const choice of contextualDefinition.choices) {
+        if (!linePrefix.match(choice.condition)) {
+          continue;
+        }
+
+        const currArgIndex = this.getArgumentIndex(linePrefix);
+        const numRequired = this.getNumRequiredArgs(choice);
+
+        /* In the optional contextual range */
+        if (currArgIndex >= numPrimaryArgs + numRequired) {
+          const choiceIndex = currArgIndex - numPrimaryArgs;
+          const currentArg = choice.args[choiceIndex];
+          if (currentArg?.required) {
+            return completionItems; /* Awkward spot, just stop trying */
+          }
+          completionItems.push(this.createOptionalTabstopArg(currentArg));
+          return completionItems;
+        } else {
+          /* Contextual required range */
+          const tabstopArgs = this.generateRequiredTabstopArgs(choice.args);
+          const snippet = new vscode.SnippetString(`${tabstopArgs}`);
+          const completionItem = new vscode.CompletionItem(
+            choice.title,
+            vscode.CompletionItemKind.Snippet
+          );
+          completionItem.insertText = snippet;
+          completionItems.push(completionItem);
+        }
+      }
+    }
+
+    return completionItems;
+  }
+
+  private findDefinitionFromPrefix(linePrefix: string): CompletionDefinition | undefined {
+    for (const completionDefinition of completionDefines) {
+      if (linePrefix.startsWith(completionDefinition.title)) {
+        return completionDefinition;
+      }
+    }
+
+    return undefined;
+  }
+
+  private getNumRequiredArgs(definition: CompletionDefinition | ContextualChoice) {
+    let numRequired = 0;
+    for (const arg of definition.args) {
+      if (arg.required) {
+        numRequired++;
+      }
+    }
+    return numRequired;
+  }
+
+  private getArgumentIndex(linePrefix: string): number {
+    const argRegex = /<%.*?%>/g; /* Handle erb substitution */
+    const sanitized = linePrefix.replace(argRegex, 'erb');
+    const split = sanitized.split(' ');
+    const final = split.filter((item) => item !== '');
+    return final.length - 1;
+  }
+
+  private computContextualCompletions(linePrefix: string): vscode.CompletionItem[] {
+    /* First find primary definition */
+    const definition = this.findDefinitionFromPrefix(linePrefix);
+    if (definition === undefined) {
+      return [];
+    }
+
+    /* Check if contextual definition matches exist */
+    const completionItems: vscode.CompletionItem[] = this.matchContextualDefinition(
+      definition,
+      linePrefix
+    );
+    if (completionItems.length > 0) {
+      return completionItems;
+    }
+
+    const currentArgIndex = this.getArgumentIndex(linePrefix);
+    if (currentArgIndex >= definition.args.length) {
+      return completionItems;
+    }
+
+    const currentArg = definition.args[currentArgIndex];
+    if (currentArg?.required) {
+      return completionItems;
+    }
+
+    completionItems.push(this.createOptionalTabstopArg(currentArg));
+    return completionItems;
+  }
+}

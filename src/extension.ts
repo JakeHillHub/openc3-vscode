@@ -6,14 +6,26 @@ import { EditorFileManager, extensionShouldLoad, ensureVscodeSettings } from './
 import { PythonStubManager } from './cosmos/pythonStubManager';
 import { GitIgnoreManager } from './gitIgnoreManager';
 import { UpdateSettingsFlag } from './utility';
+import { CosmosCmdCompletion } from './completions/cosmosCmdCompletion';
 
 const cleanupResources = new Array<vscode.Disposable>();
+
+function createCosmosCompletionProviders(outputChannel: vscode.OutputChannel): vscode.Disposable[] {
+  const cmdCompletion = new CosmosCmdCompletion(outputChannel);
+  const cosmosCmdProvider = vscode.languages.registerCompletionItemProvider(
+    ['openc3-cmd'],
+    cmdCompletion,
+    ...cmdCompletion.getTriggerChars()
+  );
+
+  return [cosmosCmdProvider];
+}
 
 export async function activate(context: vscode.ExtensionContext) {
   const shouldLoad = await extensionShouldLoad();
   if (!shouldLoad) {
     vscode.window.showInformationMessage(
-      'OpenC3 extension deactivated, workspace determined to not be a cosmos project'
+      'OpenC3 extension deactivated, workspace is not an openc3 project'
     );
     return; /* Do nothing - avoid polluting random python repos etc. */
   }
@@ -46,7 +58,8 @@ export async function activate(context: vscode.ExtensionContext) {
     pythonProvider,
     erbViewCmd,
     ...editorFileWatchers,
-    ...pythonStubManager.createSubscriptions()
+    ...pythonStubManager.createSubscriptions(),
+    ...createCosmosCompletionProviders(outputChannel)
   );
 
   const reinitializeExtension = async () => {

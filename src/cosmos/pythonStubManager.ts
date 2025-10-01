@@ -37,7 +37,7 @@ export class PythonStubManager {
 
     const moduleImports = [];
     for (const match of matches) {
-      const pathRegex = /load_utility\(["'](.*?)["']\)/;
+      const pathRegex = /(?:load_utility|load)\(["'](.*?)["']\)/;
       const pathMatch = match.match(pathRegex);
       const path = pathMatch?.[1];
       if (!path) {
