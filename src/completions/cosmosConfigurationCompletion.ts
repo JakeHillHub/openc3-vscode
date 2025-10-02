@@ -23,8 +23,13 @@ export class CosmosConfigurationCompletion implements vscode.CompletionItemProvi
     this.contextualDefinitions = contextualDefinitions;
 
     this.preComputeStaticCompletions(completionDefinitions);
+
+    let sumContextualCompletions = contextualDefinitions.length;
+    for (const definition of contextualDefinitions) {
+      sumContextualCompletions += definition.choices.length;
+    }
     this.outputChannel.appendLine(
-      `Created ${this.topLevelCompletions.length} static cmd completions`
+      `Created ${this.topLevelCompletions.length} static completions and ${sumContextualCompletions} context aware completions`
     );
   }
 

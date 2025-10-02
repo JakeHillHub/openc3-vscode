@@ -1,5 +1,2 @@
-- Add test set repo to git
-- check completions
 - ruby?
-- remaining auto stub generations/ignores for cursed load_utility function
-  - Inject stubs dynamically into **builtins**.pyi based on open editor files
+- Array Item Completions
