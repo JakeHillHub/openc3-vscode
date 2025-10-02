@@ -70,7 +70,7 @@
     },
     {
       "name": "constant.character.openc3-tlm",
-      "match": "\\b(?:BIG_ENDIAN|LITTLE_ENDIAN|nil|(?:MAX|MIN)_(?:U?INT|FLOAT)(?:8|16|32|64|128))\\b"
+      "match": "\\b(?:BIG_ENDIAN|LITTLE_ENDIAN|nil|true|True|false|false|(?:MAX|MIN)_(?:U?INT|FLOAT)(?:8|16|32|64|128))\\b"
     },
     {
       "name": "constant.numeric.openc3-tlm",

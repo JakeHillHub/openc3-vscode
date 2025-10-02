@@ -1012,6 +1012,48 @@ const contextualDefinitions: common.ContextualDefinition[] = [
       },
     ],
   },
+  {
+    match: /^OPTION.*?/,
+    choices: [
+      {
+        condition: /.*?CONNECT_CMD.*?/,
+        title: 'CMD',
+        args: [
+          {
+            title: 'LOGGING',
+            options: ['LOG', 'DONT_LOG'],
+            required: true,
+          },
+          {
+            title: 'COMMAND',
+            options: ['""'],
+            required: true,
+          },
+        ],
+      },
+      {
+        condition: /.*?PERIODIC_CMD.*?/,
+        title: 'CMD',
+        args: [
+          {
+            title: 'LOGGING',
+            options: ['LOG', 'DONT_LOG'],
+            required: true,
+          },
+          {
+            title: 'PERIOD',
+            options: ['1.0'],
+            required: true,
+          },
+          {
+            title: 'COMMAND',
+            options: ['""'],
+            required: true,
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 const staticDefinitions: common.CompletionDefinition[] = [
@@ -1043,6 +1085,36 @@ const staticDefinitions: common.CompletionDefinition[] = [
       {
         title: 'PROTOCOL_FILENAME/CLASSNAME',
         options: [...prebuiltPyProtocols, ...prebuiltRbProtocols],
+        required: true,
+      },
+    ],
+  },
+  {
+    title: 'MAP_TARGET',
+    args: [
+      {
+        title: 'TARGET_NAME',
+        options: [''],
+        required: true,
+      },
+    ],
+  },
+  {
+    title: 'MAP_CMD_TARGET',
+    args: [
+      {
+        title: 'TARGET_NAME',
+        options: [''],
+        required: true,
+      },
+    ],
+  },
+  {
+    title: 'MAP_TLM_TARGET',
+    args: [
+      {
+        title: 'TARGET_NAME',
+        options: [''],
         required: true,
       },
     ],
@@ -1397,13 +1469,13 @@ const staticDefinitions: common.CompletionDefinition[] = [
     args: [
       {
         title: 'OPTION_NAME',
-        options: [''],
+        options: [
+          'SYNC_PACKET_COUNT_DELAY_SECONDS',
+          'OPTIMIZE_THROUGHPUT',
+          'PERIODIC_CMD',
+          'CONNECT_CMD',
+        ],
         required: true,
-      },
-      {
-        title: 'OPTION_VALUE_S',
-        options: [''],
-        required: false,
       },
     ],
   },

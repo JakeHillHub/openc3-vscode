@@ -74,7 +74,7 @@ export class CosmosConfigurationCompletion implements vscode.CompletionItemProvi
       return `\${${index}:${placeholder}}`;
     }
 
-    return `\${${index}:${arg.title}}`;
+    return `\${${index}:<${arg.title}>}`;
   }
 
   private generateNoCtxRequiredTabstopArgs(args: common.CompletionArgument[]): string {

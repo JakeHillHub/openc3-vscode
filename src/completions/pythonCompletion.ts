@@ -16,7 +16,7 @@ const cmdPrefixRegex =
 const tlmPacketFieldPrefixRegex = /.*?(?:tlm|tlm_raw|tlm_formatted|tlm_with_units)\((.*)\)?/;
 const checkCmpPrefixRegex =
   /.*?(?:check|check_raw|check_formatted|check_with_units|wait_check)\((.*)\)?/;
-const checkTolPrefixRegex = /.*?(?:check_tolerance|wait_check_tolerance)\((.*)\)?/;
+const checkTolPrefixRegex = /.*?(?:check_tolerance|wait_check_tolerance|wait_tolerance)\((.*)\)?/;
 
 function stripQuotes(str: string): string {
   return str.trim().replace(/['"]/g, '');
