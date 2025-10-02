@@ -1,0 +1,96 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "OpenC3 Cosmos",
+  "scopeName": "source.openc3-tlm",
+  "fileTypes": [".txt"],
+  "patterns": [
+    {
+      "name": "source.ruby.embedded.erb.target-name.openc3-tlm",
+      "match": "(<%=\\s*)(target_name)(\\s*%>)",
+      "captures": {
+        "1": {
+          "name": "keyword.control.openc3-tlm"
+        },
+        "2": {
+          "name": "markup.italic.openc3-tlm"
+        },
+        "3": {
+          "name": "keyword.control.openc3-tlm"
+        }
+      }
+    },
+    {
+      "begin": "<%=?(?:(target_name)|.*?)",
+      "end": "%>",
+      "name": "source.ruby.embedded.erb",
+      "contentName": "source.ruby",
+      "beginCaptures": {
+        "0": {
+          "name": "keyword.control.openc3-tlm"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "keyword.control.openc3-tlm"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.ruby"
+        }
+      ]
+    },
+    {
+      "name": "keyword.control.openc3-tlm",
+      "match": "\\b(TELEMETRY|SELECT_TELEMETRY|LIMITS_GROUP)\\b"
+    },
+    {
+      "name": "entity.name.function.openc3-tlm",
+      "match": "\\b(APPEND_)?(ID_)?(ARRAY_)?ITEM\\b"
+    },
+    {
+      "name": "entity.name.function.openc3-tlm",
+      "match": "\\b(SELECT|DELETE)ITEM\\b"
+    },
+    {
+      "name": "entity.name.type.openc3-tlm",
+      "match": "\\b(U?INT|FLOAT|BLOCK|STRING|DERIVED|(?:READ|WRITE)_CONVERSION|DISABLE_MESSAGES)\\b"
+    },
+    {
+      "name": "entity.name.type.openc3-tlm",
+      "match": "\\b(STATE|LIMITS_GROUP_ITEM|FORMAT_STRING|UNITS|DESCRIPTION|META|OVERLAP|KEY|VARIABLE_BIT_SIZE|OBFUSCATE|READ_CONVERSION|POLY_READ_CONVERSION|SEG_POLY_READ_CONVERSION|OVERFLOW)\\b"
+    },
+    {
+      "name": "entity.name.type.openc3-tlm",
+      "match": "\\b(PROCESSOR|ALLOW_SHORT|HIDDEN|ACCESSOR|TEMPLATE|TEMPLATE_FILE|IGNORE|OVERLAP|VIRTUAL)\\b"
+    },
+    {
+      "name": "entity.name.function.openc3-tlm",
+      "match": "\\b(GENERIC_READ_CONVERSION_START|GENERIC_READ_CONVERSION_END)\\b"
+    },
+    {
+      "name": "constant.character.openc3-tlm",
+      "match": "\\b(?:BIG_ENDIAN|LITTLE_ENDIAN|nil|(?:MAX|MIN)_(?:U?INT|FLOAT)(?:8|16|32|64|128))\\b"
+    },
+    {
+      "name": "constant.numeric.openc3-tlm",
+      "match": "\\b[0-9]+(?:\\.[0-9]+)?\\b"
+    },
+    {
+      "name": "constant.numeric.openc3-tlm",
+      "match": "\\b0x[0-9a-fA-F]+\\b"
+    },
+    {
+      "name": "string.quoted.double.openc3-tlm",
+      "match": "\"[^\"]*\""
+    },
+    {
+      "name": "comment.line.number-sign.openc3-tlm",
+      "match": "#.*"
+    },
+    {
+      "name": "variable.name.openc3-tlm",
+      "match": "\\S"
+    }
+  ]
+}

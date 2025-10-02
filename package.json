@@ -45,6 +45,17 @@
           "erb-cmd.txt"
         ],
         "configuration": "./syntaxes/openc3-language-configuration.json"
+      },
+      {
+        "id": "openc3-tlm",
+        "aliases": [
+          "OpenC3 Telemetry"
+        ],
+        "filenames": [
+          "tlm.txt",
+          "erb-tlm.txt"
+        ],
+        "configuration": "./syntaxes/openc3-language-configuration.json"
       }
     ],
     "grammars": [
@@ -57,6 +68,11 @@
         "language": "openc3-cmd",
         "scopeName": "source.openc3-cmd",
         "path": "./syntaxes/openc3-cmd.tmLanguage.json"
+      },
+      {
+        "language": "openc3-tlm",
+        "scopeName": "source.openc3-tlm",
+        "path": "./syntaxes/openc3-tlm.tmLanguage.json"
       }
     ],
     "commands": [

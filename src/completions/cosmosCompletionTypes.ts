@@ -28,6 +28,7 @@ export interface ContextualDefinition {
 
 export const frequentlyUsedBitSize = ['8', '16', '32', '64'];
 export const endianOpts = ['BIG_ENDIAN', 'LITTLE_ENDIAN'];
+export const typeConstantsWithoutDerived = ['INT', 'UINT', 'FLOAT', 'STRING', 'BLOCK'];
 export const typeConstants = ['INT', 'UINT', 'FLOAT', 'DERIVED', 'STRING', 'BLOCK'];
 export const typeMinConstants = [
   'MIN_UINT8',

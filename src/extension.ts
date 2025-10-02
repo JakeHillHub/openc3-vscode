@@ -6,19 +6,27 @@ import { EditorFileManager, extensionShouldLoad, ensureVscodeSettings } from './
 import { PythonStubManager } from './cosmos/pythonStubManager';
 import { GitIgnoreManager } from './gitIgnoreManager';
 import { UpdateSettingsFlag } from './utility';
-import { CosmosCmdCompletion } from './completions/cosmosCmdCompletion';
+import { createCmdCompletions } from './completions/cosmosCmdCompletion';
+import { createTlmCompletions } from './completions/cosmosTlmCompletion';
 
 const cleanupResources = new Array<vscode.Disposable>();
 
 function createCosmosCompletionProviders(outputChannel: vscode.OutputChannel): vscode.Disposable[] {
-  const cmdCompletion = new CosmosCmdCompletion(outputChannel);
+  const cmdCompletion = createCmdCompletions(outputChannel);
   const cosmosCmdProvider = vscode.languages.registerCompletionItemProvider(
     ['openc3-cmd'],
     cmdCompletion,
     ...cmdCompletion.getTriggerChars()
   );
 
-  return [cosmosCmdProvider];
+  const tlmCompletion = createTlmCompletions(outputChannel);
+  const cosmosTlmProvider = vscode.languages.registerCompletionItemProvider(
+    ['openc3-tlm'],
+    tlmCompletion,
+    ...tlmCompletion.getTriggerChars()
+  );
+
+  return [cosmosCmdProvider, cosmosTlmProvider];
 }
 
 export async function activate(context: vscode.ExtensionContext) {

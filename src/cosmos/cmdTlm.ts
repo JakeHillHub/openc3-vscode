@@ -85,7 +85,7 @@ interface CmdDeclaration {
 /* We completely ignore bit offsets/bit sizes since they are irrelevant for suggestions.
    Syntax errors with bit sizes/offsets are therfore not detectable by this module.
 
-   ENTER THE REGEX LABRYNTH COWARD!
+  I aint gonna lie, this looks rough
 */
 const cmdDeclarationRegex =
   /^COMMAND\s+(\S+)\s+(\S+)\s+(BIG_ENDIAN|LITTLE_ENDIAN)(?:(?:\s+"(.+)"))?$/;
@@ -195,7 +195,7 @@ function deriveConstNum(constVal: string): number {
     // MAX for an n-bit signed integer is (2^(n-1)) - 1.
     return Number(limit - 1n);
   }
-
+  
   // Handle common float types.
   if (dataType === 'FLOAT') {
     if (sizeBitsStr === '64') {
