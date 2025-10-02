@@ -1,0 +1,79 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "OpenC3 Cosmos",
+  "scopeName": "source.openc3-cmd",
+  "fileTypes": [".txt"],
+  "patterns": [
+    {
+      "name": "source.ruby.embedded.erb.target-name.openc3-cmd",
+      "match": "(<%=\\s*)(target_name)(\\s*%>)",
+      "captures": {
+        "1": {
+          "name": "keyword.control.openc3-cmd"
+        },
+        "2": {
+          "name": "markup.italic.openc3-cmd"
+        },
+        "3": {
+          "name": "keyword.control.openc3-cmd"
+        }
+      }
+    },
+    {
+      "name": "keyword.control.openc3-cmd",
+      "match": "\\b(VARIABLE|NEEDS_DEPENDENCIES|INTERFACE|ROUTER|TARGET|MICROSERVICE|TOOL|WIDGET|SCRIPT_ENGINE)\\b"
+    },
+    {
+      "name": "entity.name.function.openc3-cmd",
+      "match": "\\b(MAP_TARGET|MAP_CMD_TARGET|MAP_TLM_TARGET|DONT_CONNECT|DONT_RECONNECT|RECONNECT_DELAY|DISABLE_DISCONNECT|LOG_RAW|LOG_STREAM|PROTOCOL|OPTION|SECRET|ENV|WORK_DIR|PORT|CMD|CONTAINER|ROUTE_PREFIX)\\b"
+    },
+    {
+      "name": "entity.name.function.openc3-cmd",
+      "match": "\\b(CMD_BUFFER_DEPTH|CMD_LOG_CYCLE_TIME|CMD_LOG_CYCLE_SIZE|CMD_DECOM_LOG_CYCLE_TIME|CMD_DECOM_LOG_CYCLE_SIZE|CMD_DECOM_LOG_RETAIN_TIME)\\b"
+    },
+    {
+      "name": "entity.name.function.openc3-cmd",
+      "match": "\\b(TLM_BUFFER_DEPTH|TLM_LOG_CYCLE_TIME|TLM_LOG_CYCLE_SIZE|TLM_LOG_RETAIN_TIME|TLM_DECOM_LOG_CYCLE_TIME|TLM_DECOM_LOG_CYCLE_SIZE|TLM_DECOM_LOG_RETAIN_TIME|REDUCED_MINUTE_LOG_RETAIN_TIME|REDUCED_HOUR_LOG_RETAIN_TIME|REDUCED_DAY_LOG_RETAIN_TIME|LOG_RETAIN_TIME|REDUCED_LOG_RETAIN_TIME|CLEANUP_POLL_TIME)\\b"
+    },
+    {
+      "name": "entity.name.function.openc3-cmd",
+      "match": "\\b(REDUCER_DISABLE|REDUCER_MAX_CPU_UTILIZATION|TARGET_MICROSERVICE|PACKET|DISABLE_ERB|SHARD)\\b"
+    },
+    {
+      "name": "entity.name.function.openc3-cmd",
+      "match": "\\b(ENV|WORK_DIR|PORT|TOPIC|TARGET_NAME|CMD|OPTION|CONTAINER|SECRET|ROUTE_PREFIX|DISABLE_ERB|STOPPED)\\b"
+    },
+    {
+      "name": "entity.name.function.openc3-cmd",
+      "match": "\\b(URL|INLINE_URL|WINDOW|ICON|CATEGORY|SHOWN|POSITION|DISABLE_ERB|IMPORT_MAP_ITEM)\\b"
+    },
+    {
+      "name": "entity.name.type.openc3-cmd",
+      "match": "\\b(U?INT|FLOAT|BLOCK|STRING|DERIVED|(?:READ|WRITE)_CONVERSION|DISABLE_MESSAGES)\\b"
+    },
+    {
+      "name": "constant.character.openc3-cmd",
+      "match": "\\b(?:BIG_ENDIAN|LITTLE_ENDIAN|nil|(?:MAX|MIN)_(?:U?INT|FLOAT)(?:8|16|32|64|128))\\b"
+    },
+    {
+      "name": "constant.numeric.openc3-cmd",
+      "match": "\\b[0-9]+(?:\\.[0-9]+)?\\b"
+    },
+    {
+      "name": "constant.numeric.openc3-cmd",
+      "match": "\\b0x[0-9a-fA-F]+\\b"
+    },
+    {
+      "name": "string.quoted.double.openc3-cmd",
+      "match": "\"[^\"]*\""
+    },
+    {
+      "name": "comment.line.number-sign.openc3-cmd",
+      "match": "#.*"
+    },
+    {
+      "name": "variable.name.openc3-cmd",
+      "match": "\\S"
+    }
+  ]
+}

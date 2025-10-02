@@ -67,11 +67,6 @@
     ],
     "grammars": [
       {
-        "language": "openc3-generic",
-        "scopeName": "source.openc3-generic",
-        "path": "./syntaxes/openc3-generic.tmLanguage.json"
-      },
-      {
         "language": "openc3-cmd",
         "scopeName": "source.openc3-cmd",
         "path": "./syntaxes/openc3-cmd.tmLanguage.json"
@@ -85,6 +80,11 @@
         "language": "openc3-target",
         "scopeName": "source.openc3-target",
         "path": "./syntaxes/openc3-target.tmLanguage.json"
+      },
+      {
+        "language": "openc3-plugin",
+        "scopeName": "source.openc3-plugin",
+        "path": "./syntaxes/openc3-plugin.tmLanguage.json"
       }
     ],
     "commands": [
