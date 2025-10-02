@@ -2,6 +2,32 @@ import * as vscode from 'vscode';
 import * as common from './cosmosCompletionTypes';
 import { CosmosConfigurationCompletion } from './cosmosConfigurationCompletion';
 
+const prebuiltPyProtocols: string[] = [
+  'openc3/interfaces/protocols/cobs_protocol.py',
+  'openc3/interfaces/protocols/slip_protocol.py',
+  'openc3/interfaces/protocols/burst_protocol.py',
+  'openc3/interfaces/protocols/fixed_protocol.py',
+  'openc3/interfaces/protocols/length_protocol.py',
+  'openc3/interfaces/protocols/terminated_protocol.py',
+  'openc3/interfaces/protocols/preidentified_protocol.py',
+  'openc3/interfaces/protocols/cmd_response_protocol.py',
+];
+
+const prebuiltRbProtocols: string[] = [
+  'CobsProtocol',
+  'SlipProtocol',
+  'BurstProtocol',
+  'FixedProtocol',
+  'LengthProtocol',
+  'TerminatedProtocol',
+  'GemsProtocol',
+  'CcsdsCltuProtocol',
+  'CcsdsTctfProtocol',
+  'CcsdsTmtfProtocol',
+  'PreidentifiedProtocol',
+  'CmdResponseProtocol',
+];
+
 const prebuiltPyInterfaces: string[] = [
   'openc3/interfaces/tcpip_client_interface.py',
   'openc3/interfaces/tcpip_server_interface.py',
@@ -96,7 +122,7 @@ const contextualDefinitions: common.ContextualDefinition[] = [
           },
           {
             title: 'READ_TIMEOUT_S',
-            options: ['nil', 'None', ''], // Allows blocking or numeric timeout
+            options: ['nil', 'None'], // Allows blocking or numeric timeout
             required: true,
           },
           {
@@ -134,12 +160,12 @@ const contextualDefinitions: common.ContextualDefinition[] = [
           },
           {
             title: 'WRITE_SOURCE_PORT',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: false,
           },
           {
             title: 'INTERFACE_ADDRESS',
-            options: ['nil', 'None', ''], // For multicast
+            options: ['nil', 'None'], // For multicast
             required: false,
           },
           {
@@ -154,7 +180,7 @@ const contextualDefinitions: common.ContextualDefinition[] = [
           },
           {
             title: 'READ_TIMEOUT_S',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: false,
           },
         ],
@@ -182,12 +208,12 @@ const contextualDefinitions: common.ContextualDefinition[] = [
           },
           {
             title: 'WRITE_TIMEOUT_S',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: false,
           },
           {
             title: 'READ_TIMEOUT_S',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: false,
           },
           {
@@ -261,12 +287,12 @@ const contextualDefinitions: common.ContextualDefinition[] = [
           },
           {
             title: 'WRITE_TOPIC',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: false,
           },
           {
             title: 'READ_TOPIC',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: false,
           },
           {
@@ -289,12 +315,12 @@ const contextualDefinitions: common.ContextualDefinition[] = [
         args: [
           {
             title: 'WRITE_PORT',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: true,
           },
           {
             title: 'READ_PORT',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: true,
           },
           {
@@ -319,7 +345,7 @@ const contextualDefinitions: common.ContextualDefinition[] = [
           },
           {
             title: 'READ_TIMEOUT_S',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: true,
           },
           {
@@ -342,17 +368,17 @@ const contextualDefinitions: common.ContextualDefinition[] = [
         args: [
           {
             title: 'COMMAND_WRITE_FOLDER',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: true,
           },
           {
             title: 'TELEMETRY_READ_FOLDER',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: true,
           },
           {
             title: 'TELEMETRY_ARCHIVE_FOLDER',
-            options: ['DELETE', ''],
+            options: ['DELETE'],
             required: true,
           },
           {
@@ -408,7 +434,7 @@ const contextualDefinitions: common.ContextualDefinition[] = [
           },
           {
             title: 'READ_TIMEOUT_S',
-            options: ['nil', 'None', ''],
+            options: ['nil', 'None'],
             required: false,
           },
           {
@@ -438,6 +464,554 @@ const contextualDefinitions: common.ContextualDefinition[] = [
       },
     ],
   },
+  {
+    match: /^PROTOCOL\s+(READ|WRITE|READ_WRITE)\s+(.*?)\s*/i,
+    choices: [
+      {
+        condition: /.*?(?:CobsProtocol|cobs_protocol).*?/,
+        title: 'COBS_PROTOCOL',
+        args: [
+          // COBS takes no required parameters
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'], // End users rarely specify this
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:SlipProtocol|slip_protocol).*?/,
+        title: 'SLIP_PROTOCOL',
+        args: [
+          {
+            title: 'START_CHAR',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'READ_STRIP_CHARACTERS',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'READ_ENABLE_ESCAPING',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'WRITE_ENABLE_ESCAPING',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'END_CHAR',
+            options: ['0xC0'],
+            required: false,
+          },
+          {
+            title: 'ESC_CHAR',
+            options: ['0xDB'],
+            required: false,
+          },
+          {
+            title: 'ESCAPE_END_CHAR',
+            options: ['0xDC'],
+            required: false,
+          },
+          {
+            title: 'ESCAPE_ESC_CHAR',
+            options: ['0xDD'],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:BurstProtocol|burst_protocol).*?/,
+        title: 'BURST_PROTOCOL',
+        args: [
+          {
+            title: 'DISCARD_LEADING_BYTES',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'SYNC_PATTERN',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'FILL_FIELDS',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:FixedProtocol|fixed_protocol).*?/,
+        title: 'FIXED_PROTOCOL',
+        args: [
+          {
+            title: 'MINIMUM_ID_SIZE',
+            options: [''],
+            required: true,
+          },
+          {
+            title: 'DISCARD_LEADING_BYTES',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'SYNC_PATTERN',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'TELEMETRY',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'FILL_FIELDS',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'UNKNOWN_RAISE',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:LengthProtocol|length_protocol).*?/,
+        title: 'LENGTH_PROTOCOL',
+        args: [
+          {
+            title: 'LENGTH_BIT_OFFSET',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'LENGTH_BIT_SIZE',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'LENGTH_VALUE_OFFSET',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'BYTES_PER_COUNT',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'LENGTH_ENDIANNESS',
+            options: ['BIG_ENDIAN', 'LITTLE_ENDIAN'],
+            required: false,
+          },
+          {
+            title: 'DISCARD_LEADING_BYTES',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'SYNC_PATTERN',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'MAX_LENGTH',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'FILL_LENGTH_AND_SYNC_PATTERN',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:TerminatedProtocol|terminated_protocol).*?/,
+        title: 'TERMINATED_PROTOCOL',
+        args: [
+          {
+            title: 'WRITE_TERMINATION_CHARACTERS',
+            options: [''],
+            required: true,
+          },
+          {
+            title: 'READ_TERMINATION_CHARACTERS',
+            options: [''],
+            required: true,
+          },
+          {
+            title: 'STRIP_READ_TERMINATION',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'DISCARD_LEADING_BYTES',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'SYNC_PATTERN',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'FILL_FIELDS',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:GemsProtocol|gems_protocol).*?/,
+        title: 'GEMS_PROTOCOL',
+        args: [
+          // GEMS takes no required parameters
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:CcsdsCltuProtocol|ccsds_cltu_protocol).*?/,
+        title: 'CCSDS_CLTU_PROTOCOL',
+        args: [
+          {
+            title: 'HEADER',
+            options: ['0xEB90'],
+            required: false,
+          },
+          {
+            title: 'FOOTER',
+            options: ['0xC5C5C5C5C5C5C579'],
+            required: false,
+          },
+          {
+            title: 'FILL_BYTE',
+            options: ['0x55'],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:CcsdsTctfProtocol|ccsds_tctf_protocol).*?/,
+        title: 'CCSDS_TCTF_PROTOCOL',
+        args: [
+          {
+            title: 'RANDOMIZATION',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'ERROR_CONTROL',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'BYPASS',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'SCID',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'VCID',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:CcsdsTmtfProtocol|ccsds_tmtf_protocol).*?/,
+        title: 'CCSDS_TMTF_PROTOCOL',
+        args: [
+          {
+            title: 'SCID',
+            options: [''],
+            required: true,
+          },
+          {
+            title: 'FRAME_LENGTH',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'RANDOMIZATION',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'DISCARD_LEADING_BYTES',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'SYNC_PATTERN',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'FILL_FIELDS',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:TemplateProtocol|template_protocol).*?/,
+        title: 'TEMPLATE_PROTOCOL_DEPRECATED',
+        args: [
+          {
+            title: 'WRITE_TERMINATION_CHARACTERS',
+            options: [''],
+            required: true,
+          },
+          {
+            title: 'READ_TERMINATION_CHARACTERS',
+            options: [''],
+            required: true,
+          },
+          {
+            title: 'IGNORE_LINES',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'INITIAL_READ_DELAY',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'RESPONSE_LINES',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'STRIP_READ_TERMINATION',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'DISCARD_LEADING_BYTES',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'SYNC_PATTERN',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'FILL_FIELDS',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'RESPONSE_TIMEOUT',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'RESPONSE_POLLING_PERIOD',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'RAISE_EXCEPTIONS',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:PreidentifiedProtocol|preidentified_protocol).*?/,
+        title: 'PREIDENTIFIED_PROTOCOL',
+        args: [
+          {
+            title: 'SYNC_PATTERN',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'MAX_LENGTH',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:CmdResponseProtocol|cmd_response_protocol).*?/,
+        title: 'CMD_RESPONSE_PROTOCOL',
+        args: [
+          {
+            title: 'RESPONSE_TIMEOUT',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'RESPONSE_POLLING_PERIOD',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'RAISE_EXCEPTIONS',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:CrcProtocol|crc_protocol).*?/,
+        title: 'CRC_PROTOCOL',
+        args: [
+          {
+            title: 'WRITE_ITEM_NAME',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'STRIP_CRC',
+            options: ['true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'BAD_STRATEGY',
+            options: ['ERROR', 'DISCONNECT'],
+            required: false,
+          },
+          {
+            title: 'BIT_OFFSET',
+            options: [''],
+            required: false,
+          },
+          {
+            title: 'BIT_SIZE',
+            options: ['16', '32', '64'],
+            required: false,
+          },
+          {
+            title: 'ENDIANNESS',
+            options: ['BIG_ENDIAN', 'LITTLE_ENDIAN'],
+            required: false,
+          },
+          // Note: POLY, SEED, XOR, REFLECT must be provided together or all omitted
+          {
+            title: 'POLY',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'SEED',
+            options: ['nil'],
+            required: false,
+          },
+          {
+            title: 'XOR',
+            options: ['nil', 'true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'REFLECT',
+            options: ['nil', 'true', 'false', 'True', 'False'],
+            required: false,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+      {
+        condition: /.*?(?:IgnorePacketProtocol|ignore_packet_protocol).*?/,
+        title: 'IGNORE_PACKET_PROTOCOL',
+        args: [
+          {
+            title: 'TARGET_NAME',
+            options: ['nil'], // Contextual: Target names
+            required: true,
+          },
+          {
+            title: 'PACKET_NAME',
+            options: ['nil'], // Contextual: Packet names for the given target
+            required: true,
+          },
+          {
+            title: 'ALLOW_EMPTY_DATA',
+            options: ['true', 'false', 'nil'],
+            required: false,
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 const staticDefinitions: common.CompletionDefinition[] = [
@@ -453,6 +1027,22 @@ const staticDefinitions: common.CompletionDefinition[] = [
       {
         title: 'FILENAME',
         options: [...prebuiltPyInterfaces, ...prebuiltRbInterfaces],
+        required: true,
+      },
+    ],
+  },
+  // --- Protocol ---
+  {
+    title: 'PROTOCOL',
+    args: [
+      {
+        title: 'DIRECTION/TYPE',
+        options: ['READ', 'WRITE', 'READ_WRITE'],
+        required: true,
+      },
+      {
+        title: 'PROTOCOL_FILENAME/CLASSNAME',
+        options: [...prebuiltPyProtocols, ...prebuiltRbProtocols],
         required: true,
       },
     ],
@@ -488,7 +1078,7 @@ const staticDefinitions: common.CompletionDefinition[] = [
         required: true,
       },
       {
-        title: 'NAME',
+        title: 'TARGET_NAME',
         options: [''],
         required: true,
       },
