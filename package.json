@@ -21,21 +21,6 @@
   "contributes": {
     "languages": [
       {
-        "id": "openc3-generic",
-        "aliases": [
-          "OpenC3 Cosmos Generic"
-        ],
-        "filenames": [
-          "target.txt",
-          "plugin.txt",
-          "tlm.txt",
-          "erb-target.txt",
-          "erb-tlm.txt",
-          "erb-plugin.txt"
-        ],
-        "configuration": "./syntaxes/openc3-language-configuration.json"
-      },
-      {
         "id": "openc3-cmd",
         "aliases": [
           "OpenC3 Commands"
@@ -56,6 +41,28 @@
           "erb-tlm.txt"
         ],
         "configuration": "./syntaxes/openc3-language-configuration.json"
+      },
+      {
+        "id": "openc3-target",
+        "aliases": [
+          "OpenC3 Targets"
+        ],
+        "filenames": [
+          "target.txt",
+          "erb-target.txt"
+        ],
+        "configuration": "./syntaxes/openc3-language-configuration.json"
+      },
+      {
+        "id": "openc3-plugin",
+        "aliases": [
+          "OpenC3 Plugins"
+        ],
+        "filenames": [
+          "plugin.txt",
+          "erb-plugin.txt"
+        ],
+        "configuration": "./syntaxes/openc3-language-configuration.json"
       }
     ],
     "grammars": [
@@ -73,6 +80,11 @@
         "language": "openc3-tlm",
         "scopeName": "source.openc3-tlm",
         "path": "./syntaxes/openc3-tlm.tmLanguage.json"
+      },
+      {
+        "language": "openc3-target",
+        "scopeName": "source.openc3-target",
+        "path": "./syntaxes/openc3-target.tmLanguage.json"
       }
     ],
     "commands": [

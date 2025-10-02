@@ -1,3 +1,6 @@
+/**
+ * Common completions provider to support all cosmos configurations
+ */
 import * as vscode from 'vscode';
 import * as common from './cosmosCompletionTypes';
 

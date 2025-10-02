@@ -1,0 +1,43 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "OpenC3 Cosmos",
+  "scopeName": "source.openc3-target",
+  "fileTypes": [".txt"],
+  "patterns": [
+    {
+      "name": "source.ruby.embedded.erb.target-name.openc3-target",
+      "match": "(<%=\\s*)(target_name)(\\s*%>)",
+      "captures": {
+        "1": {
+          "name": "keyword.control.openc3-target"
+        },
+        "2": {
+          "name": "markup.italic.openc3-target"
+        },
+        "3": {
+          "name": "keyword.control.openc3-target"
+        }
+      }
+    },
+    {
+      "name": "keyword.control.openc3-target",
+      "match": "\\b(LANGUAGE|REQUIRE|IGNORE_PARAMETER|IGNORE_ITEM|COMMANDS|TELEMETRY|CMD_UNIQUE_ID_MODE|TLM_UNIQUE_ID_MODE)\\b"
+    },
+    {
+      "name": "entity.name.type.openc3-target",
+      "match": "\\b(ruby|python)\\b"
+    },
+    {
+      "name": "string.quoted.double.openc3-target",
+      "match": "\"[^\"]*\""
+    },
+    {
+      "name": "comment.line.number-sign.openc3-target",
+      "match": "#.*"
+    },
+    {
+      "name": "variable.name.openc3-target",
+      "match": "\\S"
+    }
+  ]
+}

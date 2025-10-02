@@ -6,27 +6,33 @@ import { EditorFileManager, extensionShouldLoad, ensureVscodeSettings } from './
 import { PythonStubManager } from './cosmos/pythonStubManager';
 import { GitIgnoreManager } from './gitIgnoreManager';
 import { UpdateSettingsFlag } from './utility';
+import { CosmosConfigurationCompletion } from './completions/cosmosConfigurationCompletion';
 import { createCmdCompletions } from './completions/cosmosCmdCompletion';
 import { createTlmCompletions } from './completions/cosmosTlmCompletion';
+import { createTargetCompletions } from './completions/cosmosTargetCompletion';
 
 const cleanupResources = new Array<vscode.Disposable>();
 
+function createCompletionProvider(
+  outputChannel: vscode.OutputChannel,
+  language: string,
+  factory: (outputChannel: vscode.OutputChannel) => CosmosConfigurationCompletion
+): vscode.Disposable {
+  const completions = factory(outputChannel);
+  const provider = vscode.languages.registerCompletionItemProvider(
+    language,
+    completions,
+    ...completions.getTriggerChars()
+  );
+  return provider;
+}
+
 function createCosmosCompletionProviders(outputChannel: vscode.OutputChannel): vscode.Disposable[] {
-  const cmdCompletion = createCmdCompletions(outputChannel);
-  const cosmosCmdProvider = vscode.languages.registerCompletionItemProvider(
-    ['openc3-cmd'],
-    cmdCompletion,
-    ...cmdCompletion.getTriggerChars()
-  );
+  const cmdTxt = createCompletionProvider(outputChannel, 'openc3-cmd', createCmdCompletions);
+  const tlmTxt = createCompletionProvider(outputChannel, 'openc3-tlm', createTlmCompletions);
+  const targTxt = createCompletionProvider(outputChannel, 'openc3-target', createTargetCompletions);
 
-  const tlmCompletion = createTlmCompletions(outputChannel);
-  const cosmosTlmProvider = vscode.languages.registerCompletionItemProvider(
-    ['openc3-tlm'],
-    tlmCompletion,
-    ...tlmCompletion.getTriggerChars()
-  );
-
-  return [cosmosCmdProvider, cosmosTlmProvider];
+  return [cmdTxt, tlmTxt, targTxt];
 }
 
 export async function activate(context: vscode.ExtensionContext) {
