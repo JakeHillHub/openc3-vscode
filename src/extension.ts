@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { PythonCompletionProvider } from './completions/pythonCompletion';
+import { PythonCompletionProvider } from './completions/pythonCompletionRef';
 import { CosmosCmdTlmDB } from './cosmos/cmdTlm';
 import { EditorFileManager, extensionShouldLoad, ensureVscodeSettings } from './editorFileManager';
 import { PythonStubManager } from './cosmos/pythonStubManager';
@@ -13,6 +13,7 @@ import { createCmdCompletions } from './completions/cosmosCmdCompletion';
 import { createTlmCompletions } from './completions/cosmosTlmCompletion';
 import { createTargetCompletions } from './completions/cosmosTargetCompletion';
 import { createPluginCompletions } from './completions/cosmosPluginCompletion';
+import { createPyScriptCompletions } from './completions/pythonScriptCompletions';
 
 const cleanupResources = new Array<vscode.Disposable>();
 
@@ -62,19 +63,22 @@ export async function activate(context: vscode.ExtensionContext) {
   const pythonStubManager = new PythonStubManager(outputChannel, updateSettingsFlag);
   const gitIgnoreManager = new GitIgnoreManager(outputChannel);
 
-  const triggerChars = ['(', ',', ' ']; /* Chars that trigger python completion */
-  const pythonProvider = vscode.languages.registerCompletionItemProvider(
-    ['python'],
-    new PythonCompletionProvider(cmdTlmDB, outputChannel),
-    ...triggerChars
+  const pyComplete = createPyScriptCompletions(outputChannel, cmdTlmDB);
+  const pyScriptProvider = vscode.languages.registerCompletionItemProvider(
+    [pyComplete.language],
+    pyComplete,
+    ...pyComplete.triggerChars
   );
 
   const editorFileWatchers = editorFileManager.createOpenC3Watchers(cmdTlmDB);
   const erbViewCmd = editorFileManager.createERBViewCommand();
 
   subscribe(
-    pythonProvider,
     erbViewCmd,
+
+    pyScriptProvider,
+
+    ...pyComplete.additionalSubscriptions,
     ...editorFileWatchers,
     ...pythonStubManager.createSubscriptions(),
     ...createCosmosCompletionProviders(outputChannel)
