@@ -12,9 +12,9 @@ const boolOpts = ['True', 'False'];
 
 const completionDefinitions = [
   {
-    triggers: ['('] /* Characters that may trigger this completion ie. cmd_raw(<- trigger */,
+    triggers: [] /* Characters that may trigger this completion ie. cmd_raw(<- trigger */,
     match:
-      /.*?(?:cmd|cmd_no_range_check|cmd_no_hazardous_check|cmd_no_checks|cmd_raw|cmd_raw_no_range_check|cmd_raw_no_hazardous_check|cmd_raw_no_checks).*?/,
+      /.*?(?:cmd|cmd_no_range_check|cmd_no_hazardous_check|cmd_no_checks|cmd_raw|cmd_raw_no_range_check|cmd_raw_no_hazardous_check|cmd_raw_no_checks)\((.*?)\).*?/,
     groups: [
       {
         type: GroupType.CMD_TLM_REF,

@@ -63,9 +63,10 @@ class NoCompletion extends Error {
 class LineContext {
   public lineNumber: number;
   public text: string = '';
+  public refQuoteInner: string = '';
 
-  public groupIndex: number = -1;
-  public argIndex: number = -1;
+  public groupIndex: number = 0;
+  public argIndex: number = 0;
 
   public activeDefinition: ScriptCompletionDefinition | undefined = undefined;
 
@@ -82,6 +83,101 @@ class LineContext {
       new vscode.Range(position.line, 0, position.line, position.character)
     );
     this.text = linePrefix.trim();
+  }
+
+  /**
+   * Get everything as a raw string between () using match condition in completion def
+   */
+  private getArgsRaw(): string | undefined {
+    const regMatch = this.activeDefinition?.match;
+    if (!regMatch) {
+      return undefined;
+    }
+    const result = this.text.match(regMatch);
+    if (!result) {
+      return undefined;
+    }
+
+    const [_, raw] = result;
+    return raw;
+  }
+
+  private getRefArgsInline(): string[] | undefined {
+    const raw = this.getArgsRaw();
+    if (raw === undefined) {
+      return undefined;
+    }
+
+    const inlineArg = raw.trim().split(',')[0];
+    const inlineStrMatch = inlineArg.match(/^['"](.*?)['"]$/);
+    if (!inlineStrMatch) {
+      return undefined;
+    }
+
+    /* Derive innerQuoteValue for parameters */
+    if (inlineArg.startsWith('"')) {
+      this.refQuoteInner = "'";
+    } else if (inlineArg.startsWith("'")) {
+      this.refQuoteInner = '"';
+    } else {
+      return undefined; /* Unknown quote type */
+    }
+
+    const [_, inlineStr] = inlineStrMatch;
+    const args: string[] = inlineStr.split(' ').filter((item) => item !== '');
+    return args;
+  }
+
+  private parsePositionalArgs(argString: string): string[] {
+    const args: string[] = [];
+    let currentArg = '';
+    let braceDepth = 0;
+    let inDoubleQuotes = false;
+
+    for (const char of argString) {
+      if (char === '"') {
+        inDoubleQuotes = !inDoubleQuotes;
+      }
+
+      if (!inDoubleQuotes) {
+        if (char === '{') {
+          braceDepth++;
+        } else if (char === '}') {
+          braceDepth--;
+        }
+      }
+
+      if (char === ',' && braceDepth === 0 && !inDoubleQuotes) {
+        args.push(currentArg.trim());
+        currentArg = '';
+      } else {
+        currentArg += char;
+      }
+    }
+    args.push(currentArg.trim()); // Add the last argument
+
+    return args;
+  }
+
+  private getRefArgsPositional(): string[] | undefined {
+    const raw = this.getArgsRaw();
+    if (raw === undefined) {
+      return undefined;
+    }
+    return this.parsePositionalArgs(raw);
+  }
+
+  public retrieveCmdTlmRefArgs(method: CMethods): string[] | undefined {
+    switch (method) {
+      case CMethods.TELEMETRY_INLINE:
+      case CMethods.COMMAND_INLINE:
+        return this.getRefArgsInline();
+      case CMethods.TELEMETRY_POSITIONAL:
+      case CMethods.COMMAND_POSITIONAL:
+        return this.getRefArgsPositional();
+      default:
+        return undefined;
+    }
   }
 }
 
@@ -124,8 +220,11 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
         triggerSet.add(trigger);
       }
     }
+
     triggerSet.add(' '); /* Always trigger on space char */
     triggerSet.add(','); /* Always trigger on comma char */
+    triggerSet.add('('); /* Always trigger on left paren char */
+
     return [...triggerSet];
   }
 
@@ -150,6 +249,61 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     );
   }
 
+  private getCmdTlmRefs(arg: ScriptCompletionArg): string[] | undefined {
+    return undefined;
+  }
+
+  private cmdTlmCompletionInline(
+    group: ScriptCompletionArgGroup
+  ): vscode.CompletionItem[] | undefined {
+    const existingArgs = this.lineContext.retrieveCmdTlmRefArgs(CMethods.COMMAND_INLINE);
+
+    return undefined;
+  }
+
+  private cmdTlmCompletions(
+    group: ScriptCompletionArgGroup
+  ): vscode.ProviderResult<vscode.CompletionItem[]> {
+    const completionItems: vscode.CompletionItem[] = [];
+    for (const method of group.methods) {
+      let items: vscode.CompletionItem[] | undefined = undefined;
+      switch (method) {
+        case CMethods.COMMAND_INLINE:
+          items = this.cmdTlmCompletionInline(group);
+          break;
+        case CMethods.COMMAND_POSITIONAL:
+          break;
+      }
+      if (items !== undefined) {
+        completionItems.push(...items);
+      }
+    }
+    return completionItems;
+  }
+
+  private apiFnCompletions(
+    group: ScriptCompletionArgGroup
+  ): vscode.ProviderResult<vscode.CompletionItem[]> {
+    const completionItems: vscode.CompletionItem[] = [];
+    return completionItems;
+  }
+
+  private createNextCompletion(): vscode.ProviderResult<vscode.CompletionItem[]> {
+    const group = this.lineContext.activeDefinition?.groups[this.lineContext.groupIndex];
+    if (!group) {
+      return undefined;
+    }
+
+    switch (group.type) {
+      case GroupType.CMD_TLM_REF:
+        return this.cmdTlmCompletions(group);
+      case GroupType.API_FN_ARGS:
+        return this.apiFnCompletions(group);
+      default:
+        return undefined;
+    }
+  }
+
   private searchDefinition(text: string): ScriptCompletionDefinition | undefined {
     for (const definition of this.defs) {
       if (text.match(definition.match)) {
@@ -157,10 +311,6 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
       }
     }
     return undefined;
-  }
-
-  private createNextCompletion(): vscode.ProviderResult<vscode.CompletionItem[]> {
-    throw new NoCompletion('Nothing to complete');
   }
 
   public provideCompletionItems(
