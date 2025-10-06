@@ -79,10 +79,8 @@ class LineContext {
   }
 
   public update(document: vscode.TextDocument, position: vscode.Position) {
-    const linePrefix = document.getText(
-      new vscode.Range(position.line, 0, position.line, position.character)
-    );
-    this.text = linePrefix.trim();
+    const line = document.lineAt(position).text;
+    this.text = line.trim();
   }
 
   /**
@@ -257,6 +255,9 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     group: ScriptCompletionArgGroup
   ): vscode.CompletionItem[] | undefined {
     const existingArgs = this.lineContext.retrieveCmdTlmRefArgs(CMethods.COMMAND_INLINE);
+    if (existingArgs === undefined) {
+
+    }
 
     return undefined;
   }
