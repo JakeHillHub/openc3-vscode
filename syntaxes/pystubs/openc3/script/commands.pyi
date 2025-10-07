@@ -2,8 +2,22 @@
 
 from typing import Dict, Any, List, Tuple, Optional, overload
 
+# @overload
+# def enable_cmd(cmd_string: str) -> None: ...
+# @overload
+# def enable_cmd(target_name: str, command_name: str) -> None: ...
+# def enable_cmd(*args: str) -> None:
+
 # --- Commanding ---
 
+@overload
+def cmd(
+    cmd_string: str,
+    timeout: int = 5,
+    log_message: bool = False,
+    validate: bool = True,
+) -> None: ...
+@overload
 def cmd(
     target: str,
     command: str,

@@ -25,7 +25,7 @@ export enum TlmFieldType {
   ARRAY_ITEM,
 }
 
-enum DataType {
+export enum DataType {
   INT,
   UINT,
   FLOAT,
@@ -195,7 +195,7 @@ function deriveConstNum(constVal: string): number {
     // MAX for an n-bit signed integer is (2^(n-1)) - 1.
     return Number(limit - 1n);
   }
-  
+
   // Handle common float types.
   if (dataType === 'FLOAT') {
     if (sizeBitsStr === '64') {

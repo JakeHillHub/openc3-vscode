@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { CmdArgument, CmdParamType, CosmosCmdTlmDB, TlmField } from '../cosmos/cmdTlm';
+import { CmdArgument, CmdParamType, CosmosCmdTlmDB, DataType, TlmField } from '../cosmos/cmdTlm';
 import { Script } from 'vm';
 
 export enum Language {
@@ -74,6 +74,10 @@ function stripQuotes(str: string): string {
   return str.trim().replace(/['"]/g, '');
 }
 
+function stripQuoteComma(str: string): string {
+  return str.trim().replace(/['",]/g, '');
+}
+
 /**
  * Track completion info for the current line to shortcut logic on each completion
  */
@@ -128,32 +132,47 @@ class LineContext {
     return raw;
   }
 
-  private getRefArgsInline(noFilter?: boolean): RefArg[] | undefined {
+  private splitInlineArgs(inlineStr: string): string[] {
+    // Handle case where string parameters enclosed in single/double quotes contain a space
+    // Cannot simply split(' ')
+    const tokenRegex = /(".*?"|'.*?'|[^ ]+)/g;
+    const tokens = inlineStr.match(tokenRegex);
+
+    if (!tokens) {
+      return [];
+    }
+
+    return tokens.map((token) => token.trim()).filter((token) => token.length > 0);
+  }
+
+  private getRefArgsInline(): RefArg[] | undefined {
     const raw = this.getArgsRaw();
     if (raw === undefined) {
       return undefined;
     }
 
-    const inlineArg = raw.trim().split(',')[0];
-    const inlineStrMatch = inlineArg.match(/^['"](.*?)['"]$/);
+    /* Derive innerQuoteValue for parameters */
+    let inlineStrMatch = null;
+    if (raw.startsWith('"')) {
+      this.inlineRefQuoteInner = "'";
+      inlineStrMatch = raw.trim().match(/^"(.*?)"/); /* Capture between doubles */
+    } else if (raw.startsWith("'")) {
+      this.inlineRefQuoteInner = '"';
+      inlineStrMatch = raw.trim().match(/^'(.*?)'/); /* Capture between singles */
+    } else {
+      return undefined; /* Unknown quote type */
+    }
     if (!inlineStrMatch) {
       return undefined;
     }
 
-    /* Derive innerQuoteValue for parameters */
-    if (inlineArg.startsWith('"')) {
-      this.inlineRefQuoteInner = "'";
-    } else if (inlineArg.startsWith("'")) {
-      this.inlineRefQuoteInner = '"';
-    } else {
-      return undefined; /* Unknown quote type */
+    const inlineArg = inlineStrMatch[1];
+    if (inlineArg === undefined) {
+      return undefined;
     }
 
     const [_, inlineStr] = inlineStrMatch;
-    let strArgs: string[] = inlineStr.split(' ');
-    if (!noFilter) {
-      strArgs = strArgs.filter((item) => item !== '');
-    }
+    let strArgs: string[] = this.splitInlineArgs(inlineStr);
 
     const args: RefArg[] = [];
     let paramsFlagFound = false;
@@ -164,14 +183,14 @@ class LineContext {
         if (arg === 'with') {
           paramsFlagFound = true;
         } else {
-          args.push({ type: RefArgType.FIELD, value: arg });
+          args.push({ type: RefArgType.FIELD, value: stripQuotes(arg) });
         }
         continue;
       }
       if (key === undefined) {
         key = arg;
       } else {
-        args.push({ type: RefArgType.MAPPING, value: [key, arg] });
+        args.push({ type: RefArgType.MAPPING, value: [stripQuotes(key), stripQuoteComma(arg)] });
         key = undefined;
       }
     }
@@ -210,6 +229,25 @@ class LineContext {
     return strArgs;
   }
 
+  private detectPositional(): boolean | undefined {
+    const raw = this.getArgsRaw();
+    if (raw === undefined) {
+      return undefined;
+    }
+
+    let result = null;
+    if (raw.startsWith('"')) {
+      result = raw.trim().match(/^".*?",/); /* Capture between doubles */
+    } else if (raw.startsWith("'")) {
+      result = raw.trim().match(/^'.*?',/); /* Capture between singles */
+    }
+
+    if (result === null) {
+      return false;
+    }
+    return true;
+  }
+
   private getRefArgsPositional(): RefArg[] | undefined {
     const raw = this.getArgsRaw();
     if (raw === undefined) {
@@ -219,6 +257,10 @@ class LineContext {
     const args: RefArg[] = [];
     const posArgsStr = this.parsePositionalArgs(raw);
     for (const posStr of posArgsStr) {
+      if (posStr === '') {
+        continue;
+      }
+
       /* Dictionary or Hash */
       if (posStr.match(/{.*?}/)) {
         const s = posStr.split(this.mapSeparator);
@@ -229,7 +271,7 @@ class LineContext {
         const val = stripQuotes(s[1].trim());
         args.push({ type: RefArgType.MAPPING, value: [key, val] });
       } else {
-        args.push({ type: RefArgType.FIELD, value: stripQuotes(posStr) });
+        args.push({ type: RefArgType.FIELD, value: stripQuoteComma(posStr) });
       }
     }
 
@@ -250,17 +292,19 @@ class LineContext {
   }
 
   public deriveCmdRefMethod(): CMethods | undefined {
-    const inlineArgs = this.getRefArgsInline(true); /* No filter leaves empty strings in */
-    if (inlineArgs !== undefined && inlineArgs.length > 1) {
+    if (this.detectPositional()) {
+      const positionalArgs = this.getRefArgsPositional();
+      if (positionalArgs !== undefined && positionalArgs.length !== 0) {
+        this.method = CMethods.COMMAND_POSITIONAL;
+        return CMethods.COMMAND_POSITIONAL;
+      }
+    }
+
+    const inlineArgs = this.getRefArgsInline(); /* No filter leaves empty strings in */
+    if (inlineArgs !== undefined && inlineArgs.length >= 1) {
       /* Starts like cmd("STRING<space>...") - 99% inline ref */
       this.method = CMethods.COMMAND_INLINE;
       return CMethods.COMMAND_INLINE;
-    }
-
-    const positionalArgs = this.getRefArgsPositional();
-    if (positionalArgs !== undefined) {
-      this.method = CMethods.COMMAND_POSITIONAL;
-      return CMethods.COMMAND_POSITIONAL;
     }
 
     return undefined;
@@ -309,7 +353,6 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     }
 
     triggerSet.add(' '); /* Always trigger on space char */
-    triggerSet.add(','); /* Always trigger on comma char */
     triggerSet.add('('); /* Always trigger on left paren char */
 
     return [...triggerSet];
@@ -342,27 +385,50 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     return item;
   }
 
-  private generateTabstopArgs(values: string[]): string {
-    const args: string[] = [];
-    return `\${1|${values.join(',')}|}`;
+  private createInlineStrCompletionNewQuote(label: string, text: string): vscode.CompletionItem {
+    const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Snippet);
+    const snippet = `"${text}$0"`;
+    item.insertText = new vscode.SnippetString(snippet);
+    return item;
+  }
+
+  private generateTabstopArgs(values: string[], quoteValues?: boolean): string {
+    const joinedValues = values.join(',');
+    const coreTabstop = `\${1|${joinedValues}|}`;
+    const finalExit = '$0';
+
+    if (quoteValues) {
+      const quote = this.lineContext.inlineRefQuoteInner;
+      return `${quote}${coreTabstop}${quote}${finalExit}`;
+    }
+
+    return `${coreTabstop}${finalExit}`;
   }
 
   private createInlineCmdParamCompletion(
     label: string,
     key: string,
-    value: CmdArgument
+    value: CmdArgument,
+    firstParam: boolean
   ): vscode.CompletionItem {
     const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Snippet);
-    let tabStopper = this.generateTabstopArgs(value.defaultValue);
+    let tabStopper = this.generateTabstopArgs(
+      [value.defaultValue],
+      value.dataType === DataType.STRING
+    );
     if (value.enumValues.size !== 0) {
       const enumKeys: string[] = [];
       for (const [ename, _] of value.enumValues.entries()) {
         enumKeys.push(ename);
       }
-      tabStopper = this.generateTabstopArgs(enumKeys);
+      tabStopper = this.generateTabstopArgs(enumKeys, true);
     }
 
-    const snippet = new vscode.SnippetString(`${key} ${tabStopper}`);
+    let snippetText = `${key} ${tabStopper}`;
+    if (firstParam) {
+      snippetText = 'with ' + snippetText;
+    }
+    const snippet = new vscode.SnippetString(snippetText);
 
     item.insertText = snippet;
     return item;
@@ -399,8 +465,8 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
         if (cmdMnemonic === undefined || cmdMnemonic.type !== RefArgType.FIELD) {
           throw new NoCompletion('No command mnemonic for params');
         }
-        const cmdParams = this.db.getTargetCmds(targetName.value as string);
-        const cmdDefinition = cmdParams.get(cmdMnemonic.value as string);
+        const cmds = this.db.getTargetCmds(targetName.value as string);
+        const cmdDefinition = cmds.get(cmdMnemonic.value as string);
         if (cmdDefinition === undefined) {
           throw new NoCompletion(`Could not find params for command mnemonic ${cmdMnemonic.value}`);
         }
@@ -443,28 +509,43 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
   ): vscode.CompletionItem[] {
     const existingArgs = this.lineContext.retrieveRefArgs(CMethods.COMMAND_INLINE);
     const argIndex = existingArgs?.length || 0; /* Default to zero if nothing could parse */
-    const refArg = group.args[argIndex];
+
+    let refArg = group.args[argIndex];
     if (refArg === undefined) {
-      throw new NoCompletion('No args left in group');
+      const lastArg = group.args.at(-1);
+      /* If this is variable length parameters we can proceed always */
+      if (lastArg === undefined || lastArg.source !== ArgSource.CMD_PARAMS) {
+        /* If it was not variable length parameters we are done with completions */
+        throw new NoCompletion('No more args to complete');
+      }
+      refArg = lastArg;
     }
 
     const completions: vscode.CompletionItem[] = [];
     const refsList = this.getRefsListForArg(refArg, existingArgs || []);
     for (const ref of refsList) {
-      const refVal = ref.value as string;
+      let refVal = ref.value as string;
       let label = refVal;
       if (annotate) {
-        label = label + ' inline';
+        label = label + ' (inline)';
       }
 
       if (ref.type === RefArgType.FIELD) {
-        completions.push(this.createInlineStrCompletion(label, refVal));
+        if (argIndex === 0) {
+          /* First overall parameter, wrap in quotes */
+          completions.push(this.createInlineStrCompletionNewQuote(label, refVal));
+        } else {
+          completions.push(this.createInlineStrCompletion(label, refVal));
+        }
       } else if (ref.type === RefArgType.CMD_PARAM) {
-        completions.push(this.createInlineCmdParamCompletion(label, refVal, ref.param));
+        const firstParam = argIndex === 2;
+        completions.push(
+          this.createInlineCmdParamCompletion(label, refVal, ref.param as CmdArgument, firstParam)
+        );
       }
     }
 
-    throw new NoCompletion('Nothing to do');
+    return completions;
   }
 
   private cmdTlmCompletionPositional(
@@ -511,7 +592,8 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
           err = e;
           continue;
         }
-        throw e;
+        this.outputChannel.append(`Unexpected error handling script completion generation ${e}`);
+        return undefined;
       }
     }
 
