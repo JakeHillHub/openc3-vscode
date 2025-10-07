@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { CosmosCmdTlmDB } from '../cosmos/cmdTlm';
+import { Script } from 'vm';
 
 export enum Language {
   RUBY = 'ruby',
@@ -57,21 +58,46 @@ class NoCompletion extends Error {
   }
 }
 
+enum RefArgType {
+  FIELD,
+  MAPPING,
+}
+
+interface RefArg {
+  type: RefArgType;
+  value: string | string[];
+}
+
+function stripQuotes(str: string): string {
+  return str.trim().replace(/['"]/g, '');
+}
+
 /**
  * Track completion info for the current line to shortcut logic on each completion
  */
 class LineContext {
+  private mapSeparator: string;
+
   public lineNumber: number;
   public text: string = '';
-  public refQuoteInner: string = '';
+
+  public inlineRefQuoteInner: string = '';
+  public method: CMethods | undefined = undefined;
 
   public groupIndex: number = 0;
-  public argIndex: number = 0;
 
   public activeDefinition: ScriptCompletionDefinition | undefined = undefined;
 
-  constructor(lineNumber: number) {
+  constructor(lineNumber: number, language: Language) {
     this.lineNumber = lineNumber;
+
+    if (language === Language.PYTHON) {
+      this.mapSeparator = ':';
+    } else if (language === Language.RUBY) {
+      this.mapSeparator = '=>';
+    } else {
+      throw new Error('Invalid language type');
+    }
   }
 
   get hasDefinition(): boolean {
@@ -100,7 +126,7 @@ class LineContext {
     return raw;
   }
 
-  private getRefArgsInline(): string[] | undefined {
+  private getRefArgsInline(noFilter?: boolean): RefArg[] | undefined {
     const raw = this.getArgsRaw();
     if (raw === undefined) {
       return undefined;
@@ -114,20 +140,45 @@ class LineContext {
 
     /* Derive innerQuoteValue for parameters */
     if (inlineArg.startsWith('"')) {
-      this.refQuoteInner = "'";
+      this.inlineRefQuoteInner = "'";
     } else if (inlineArg.startsWith("'")) {
-      this.refQuoteInner = '"';
+      this.inlineRefQuoteInner = '"';
     } else {
       return undefined; /* Unknown quote type */
     }
 
     const [_, inlineStr] = inlineStrMatch;
-    const args: string[] = inlineStr.split(' ').filter((item) => item !== '');
+    let strArgs: string[] = inlineStr.split(' ');
+    if (!noFilter) {
+      strArgs = strArgs.filter((item) => item !== '');
+    }
+
+    const args: RefArg[] = [];
+    let paramsFlagFound = false;
+    let key = undefined;
+
+    for (const arg of strArgs) {
+      if (!paramsFlagFound) {
+        if (arg === 'with') {
+          paramsFlagFound = true;
+        } else {
+          args.push({ type: RefArgType.FIELD, value: arg });
+        }
+        continue;
+      }
+      if (key === undefined) {
+        key = arg;
+      } else {
+        args.push({ type: RefArgType.MAPPING, value: [key, arg] });
+        key = undefined;
+      }
+    }
+
     return args;
   }
 
   private parsePositionalArgs(argString: string): string[] {
-    const args: string[] = [];
+    const strArgs: string[] = [];
     let currentArg = '';
     let braceDepth = 0;
     let inDoubleQuotes = false;
@@ -146,26 +197,44 @@ class LineContext {
       }
 
       if (char === ',' && braceDepth === 0 && !inDoubleQuotes) {
-        args.push(currentArg.trim());
+        strArgs.push(currentArg.trim());
         currentArg = '';
       } else {
         currentArg += char;
       }
     }
-    args.push(currentArg.trim()); // Add the last argument
+    strArgs.push(currentArg.trim()); // Add the last argument
 
-    return args;
+    return strArgs;
   }
 
-  private getRefArgsPositional(): string[] | undefined {
+  private getRefArgsPositional(): RefArg[] | undefined {
     const raw = this.getArgsRaw();
     if (raw === undefined) {
       return undefined;
     }
-    return this.parsePositionalArgs(raw);
+
+    const args: RefArg[] = [];
+    const posArgsStr = this.parsePositionalArgs(raw);
+    for (const posStr of posArgsStr) {
+      /* Dictionary or Hash */
+      if (posStr.match(/{.*?}/)) {
+        const s = posStr.split(this.mapSeparator);
+        if (s.length !== 2) {
+          return undefined; /* Malformed dict or hash */
+        }
+        const key = stripQuotes(s[0].trim());
+        const val = stripQuotes(s[1].trim());
+        args.push({ type: RefArgType.MAPPING, value: [key, val] });
+      } else {
+        args.push({ type: RefArgType.FIELD, value: stripQuotes(posStr) });
+      }
+    }
+
+    return args;
   }
 
-  public retrieveCmdTlmRefArgs(method: CMethods): string[] | undefined {
+  public retrieveRefArgs(method: CMethods): RefArg[] | undefined {
     switch (method) {
       case CMethods.TELEMETRY_INLINE:
       case CMethods.COMMAND_INLINE:
@@ -177,13 +246,30 @@ class LineContext {
         return undefined;
     }
   }
+
+  public deriveCmdRefMethod(): CMethods | undefined {
+    const inlineArgs = this.getRefArgsInline(true); /* No filter leaves empty strings in */
+    if (inlineArgs !== undefined && inlineArgs.length > 1) {
+      /* Starts like cmd("STRING<space>...") - 99% inline ref */
+      this.method = CMethods.COMMAND_INLINE;
+      return CMethods.COMMAND_INLINE;
+    }
+
+    const positionalArgs = this.getRefArgsPositional();
+    if (positionalArgs !== undefined) {
+      this.method = CMethods.COMMAND_POSITIONAL;
+      return CMethods.COMMAND_POSITIONAL;
+    }
+
+    return undefined;
+  }
 }
 
 export class CosmosScriptCompletionProvider implements vscode.CompletionItemProvider {
   private _subscriptions: vscode.Disposable[] = [];
   private _language: Language;
 
-  private lineContext: LineContext = new LineContext(-1);
+  private lineContext: LineContext;
 
   private outputChannel: vscode.OutputChannel;
 
@@ -196,6 +282,7 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     language: Language,
     cmdTlmDB: CosmosCmdTlmDB
   ) {
+    this.lineContext = new LineContext(-1, language);
     this.outputChannel = outputChannel;
     this.outputChannel.show(true);
 
@@ -239,7 +326,7 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
             const currentLine = currentPosition.line;
 
             if (this.lineContext.lineNumber !== currentLine) {
-              this.lineContext = new LineContext(currentLine);
+              this.lineContext = new LineContext(currentLine, this.language);
             }
           }
         }
@@ -247,38 +334,134 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     );
   }
 
-  private getCmdTlmRefs(arg: ScriptCompletionArg): string[] | undefined {
-    return undefined;
+  private createInlineStrCompletion(label: string, text: string): vscode.CompletionItem {
+    const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Field);
+    item.insertText = text;
+    return item;
+  }
+
+  private getRefsListForArg(refArg: ScriptCompletionArg, existingArgs: RefArg[]): string[] {
+    switch (refArg.source) {
+      case ArgSource.CMD_TARGET: {
+        return this.db.getCmdTargets();
+      }
+      case ArgSource.CMD_MNEMONIC: {
+        const targetName = existingArgs[0];
+        if (targetName === undefined || targetName.type !== RefArgType.FIELD) {
+          throw new NoCompletion('No command target for mnemonic');
+        }
+        const targetCmds = this.db.getTargetCmds(targetName.value as string);
+
+        const cmdMnemonics: string[] = [];
+        for (const [cmdMnemonic, _] of targetCmds.entries()) {
+          cmdMnemonics.push(cmdMnemonic);
+        }
+        return cmdMnemonics;
+      }
+      case ArgSource.CMD_PARAMS: {
+        const targetName = existingArgs[0];
+        if (targetName === undefined || targetName.type !== RefArgType.FIELD) {
+          throw new NoCompletion('No command target for params');
+        }
+        const cmdMnemonic = existingArgs[1];
+        if (cmdMnemonic === undefined || cmdMnemonic.type !== RefArgType.FIELD) {
+          throw new NoCompletion('No command mnemonic for params');
+        }
+
+        const cmdParams = this.db.getTargetCmds(targetName.value as string);
+        const cmdDefinition = cmdParams.get(cmdMnemonic.value as string);
+        if (cmdDefinition === undefined) {
+          throw new NoCompletion(`Could not find params for command mnemonic ${cmdMnemonic.value}`);
+        }
+
+        const existingParams = existingArgs.slice(2);
+        const existingParamNames = existingParams.map((p) => {
+          if (p.type === RefArgType.MAPPING) {
+            return p.value[0];
+          }
+          return '';
+        });
+      }
+    }
   }
 
   private cmdTlmCompletionInline(
-    group: ScriptCompletionArgGroup
-  ): vscode.CompletionItem[] | undefined {
-    const existingArgs = this.lineContext.retrieveCmdTlmRefArgs(CMethods.COMMAND_INLINE);
-    if (existingArgs === undefined) {
-
+    group: ScriptCompletionArgGroup,
+    annotate: boolean
+  ): vscode.CompletionItem[] {
+    const existingArgs = this.lineContext.retrieveRefArgs(CMethods.COMMAND_INLINE);
+    const argIndex = existingArgs?.length || 0; /* Default to zero if nothing could parse */
+    const refArg = group.args[argIndex];
+    if (refArg === undefined) {
+      throw new NoCompletion('No args left in group');
     }
 
-    return undefined;
+    const completions: vscode.CompletionItem[] = [];
+    const refsList = this.getRefsListForArg(refArg, existingArgs);
+    for (const refStr of refsList) {
+      let label = refStr;
+      if (annotate) {
+        label = label + ' inline';
+      }
+
+      completions.push(this.createInlineStrCompletion(label, refStr));
+    }
+
+    throw new NoCompletion('Nothing to do');
+  }
+
+  private cmdTlmCompletionPositional(
+    group: ScriptCompletionArgGroup,
+    annotate: boolean
+  ): vscode.CompletionItem[] {
+    throw new NoCompletion('Not implemented');
+  }
+
+  private getCmdCompletion(
+    method: CMethods,
+    group: ScriptCompletionArgGroup,
+    annotate: boolean
+  ): vscode.CompletionItem[] {
+    switch (method) {
+      case CMethods.COMMAND_INLINE:
+        return this.cmdTlmCompletionInline(group, annotate);
+      case CMethods.COMMAND_POSITIONAL:
+        return this.cmdTlmCompletionPositional(group, annotate);
+      default:
+        throw new NoCompletion('Impossible completion method');
+    }
   }
 
   private cmdTlmCompletions(
     group: ScriptCompletionArgGroup
   ): vscode.ProviderResult<vscode.CompletionItem[]> {
+    /* Try immediate solution first */
+    const derivedMethod = this.lineContext.deriveCmdRefMethod();
+    if (derivedMethod !== undefined) {
+      return this.getCmdCompletion(derivedMethod, group, false);
+    }
+
+    /* If undecided return list of all available completions with method annotations */
     const completionItems: vscode.CompletionItem[] = [];
+    let err: Error | undefined = undefined;
+
     for (const method of group.methods) {
-      let items: vscode.CompletionItem[] | undefined = undefined;
-      switch (method) {
-        case CMethods.COMMAND_INLINE:
-          items = this.cmdTlmCompletionInline(group);
-          break;
-        case CMethods.COMMAND_POSITIONAL:
-          break;
-      }
-      if (items !== undefined) {
-        completionItems.push(...items);
+      /* Aggregate all methods with annotations */
+      try {
+        completionItems.push(...this.getCmdCompletion(method, group, true));
+      } catch (e) {
+        if (e instanceof NoCompletion) {
+          err = e;
+          continue;
+        }
+        throw e;
       }
     }
+
+    if (completionItems.length === 0 && err !== undefined) {
+      throw err; /* Raise last exception if no completion could generate */
+    }
+
     return completionItems;
   }
 
