@@ -126,8 +126,6 @@ export class CosmosConfigurationCompletion implements vscode.CompletionItemProvi
 
   private generateCompletionFromDefinition(d: common.CompletionDefinition): vscode.CompletionItem {
     const item = new vscode.CompletionItem(d.title, vscode.CompletionItemKind.Snippet);
-    item.detail = `(snippet) Inserts a full ${d.title} definition.`;
-
     const argsString = this.generateNoCtxRequiredTabstopArgs(d.args);
     const snippet = new vscode.SnippetString(`${d.title} ${argsString}`);
 

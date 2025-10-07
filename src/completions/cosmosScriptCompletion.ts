@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { CosmosCmdTlmDB } from '../cosmos/cmdTlm';
+import { CmdArgument, CmdParamType, CosmosCmdTlmDB, TlmField } from '../cosmos/cmdTlm';
 import { Script } from 'vm';
 
 export enum Language {
@@ -61,11 +61,13 @@ class NoCompletion extends Error {
 enum RefArgType {
   FIELD,
   MAPPING,
+  CMD_PARAM,
 }
 
 interface RefArg {
   type: RefArgType;
   value: string | string[];
+  param?: CmdArgument | TlmField;
 }
 
 function stripQuotes(str: string): string {
@@ -340,10 +342,38 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     return item;
   }
 
-  private getRefsListForArg(refArg: ScriptCompletionArg, existingArgs: RefArg[]): string[] {
+  private generateTabstopArgs(values: string[]): string {
+    const args: string[] = [];
+    return `\${1|${values.join(',')}|}`;
+  }
+
+  private createInlineCmdParamCompletion(
+    label: string,
+    key: string,
+    value: CmdArgument
+  ): vscode.CompletionItem {
+    const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Snippet);
+    let tabStopper = this.generateTabstopArgs(value.defaultValue);
+    if (value.enumValues.size !== 0) {
+      const enumKeys: string[] = [];
+      for (const [ename, _] of value.enumValues.entries()) {
+        enumKeys.push(ename);
+      }
+      tabStopper = this.generateTabstopArgs(enumKeys);
+    }
+
+    const snippet = new vscode.SnippetString(`${key} ${tabStopper}`);
+
+    item.insertText = snippet;
+    return item;
+  }
+
+  private getRefsListForArg(refArg: ScriptCompletionArg, existingArgs: RefArg[]): RefArg[] {
     switch (refArg.source) {
       case ArgSource.CMD_TARGET: {
-        return this.db.getCmdTargets();
+        return this.db.getCmdTargets().map((t) => {
+          return { type: RefArgType.FIELD, value: t };
+        });
       }
       case ArgSource.CMD_MNEMONIC: {
         const targetName = existingArgs[0];
@@ -356,7 +386,9 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
         for (const [cmdMnemonic, _] of targetCmds.entries()) {
           cmdMnemonics.push(cmdMnemonic);
         }
-        return cmdMnemonics;
+        return cmdMnemonics.map((m) => {
+          return { type: RefArgType.FIELD, value: m };
+        });
       }
       case ArgSource.CMD_PARAMS: {
         const targetName = existingArgs[0];
@@ -367,7 +399,6 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
         if (cmdMnemonic === undefined || cmdMnemonic.type !== RefArgType.FIELD) {
           throw new NoCompletion('No command mnemonic for params');
         }
-
         const cmdParams = this.db.getTargetCmds(targetName.value as string);
         const cmdDefinition = cmdParams.get(cmdMnemonic.value as string);
         if (cmdDefinition === undefined) {
@@ -379,9 +410,30 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
           if (p.type === RefArgType.MAPPING) {
             return p.value[0];
           }
-          return '';
+          return ''; /* Empty string will not match any parameter */
         });
+
+        const args: RefArg[] = [];
+        for (const param of cmdDefinition.arguments) {
+          if (existingParamNames.includes(param.name)) {
+            continue;
+          }
+
+          if (param.paramType === CmdParamType.ID_PARAMETER) {
+            continue; /* Ignore ID parameters in suggestions */
+          }
+
+          args.push({
+            type: RefArgType.CMD_PARAM,
+            value: param.name,
+            param: param,
+          });
+        }
+
+        return args;
       }
+      default:
+        throw new NoCompletion('Invalid refArg');
     }
   }
 
@@ -397,14 +449,19 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     }
 
     const completions: vscode.CompletionItem[] = [];
-    const refsList = this.getRefsListForArg(refArg, existingArgs);
-    for (const refStr of refsList) {
-      let label = refStr;
+    const refsList = this.getRefsListForArg(refArg, existingArgs || []);
+    for (const ref of refsList) {
+      const refVal = ref.value as string;
+      let label = refVal;
       if (annotate) {
         label = label + ' inline';
       }
 
-      completions.push(this.createInlineStrCompletion(label, refStr));
+      if (ref.type === RefArgType.FIELD) {
+        completions.push(this.createInlineStrCompletion(label, refVal));
+      } else if (ref.type === RefArgType.CMD_PARAM) {
+        completions.push(this.createInlineCmdParamCompletion(label, refVal, ref.param));
+      }
     }
 
     throw new NoCompletion('Nothing to do');
