@@ -651,7 +651,51 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     group: ScriptCompletionArgGroup,
     annotate: boolean
   ): vscode.CompletionItem[] {
-    throw new NoCompletion('Not implemented');
+    const existingArgs = this.lineContext.retrieveRefArgs(CMethods.COMMAND_POSITIONAL);
+    const argIndex = existingArgs?.length || 0; /* Default to zero if nothing could parse */
+
+    if (argIndex >= 1) {
+      /* cmd("ARG1", <here>) */
+      /* We can be confident that this completion method is definitely positional now */
+      this.lineContext.methodLocked = true;
+    }
+
+    let refArg = group.args[argIndex];
+    if (refArg === undefined) {
+      const lastArg = group.args.at(-1);
+      /* If this is variable length parameters we can proceed always */
+      if (lastArg === undefined || lastArg.source !== ArgSource.CMD_PARAMS) {
+        /* If it was not variable length parameters we are done with completions */
+        throw new NoCompletion('No more args to complete');
+      }
+      refArg = lastArg;
+    }
+
+    const completions: vscode.CompletionItem[] = [];
+    const refsList = this.getRefsListForArg(refArg, existingArgs || []);
+    for (const ref of refsList) {
+      let refVal = ref.value as string;
+      let label = refVal;
+      if (annotate) {
+        label = label + ' (inline)';
+      }
+
+      if (ref.type === RefArgType.FIELD) {
+        if (argIndex === 0) {
+          /* First overall parameter, wrap in quotes */
+          completions.push(this.createInlineStrCompletionNewQuote(label, refVal));
+        } else {
+          completions.push(this.createInlineStrCompletion(label, refVal));
+        }
+      } else if (ref.type === RefArgType.CMD_PARAM) {
+        const firstParam = argIndex === 2;
+        completions.push(
+          this.createInlineCmdParamCompletion(label, refVal, ref.param as CmdArgument, firstParam)
+        );
+      }
+    }
+
+    return completions;
   }
 
   private getCmdCompletion(
