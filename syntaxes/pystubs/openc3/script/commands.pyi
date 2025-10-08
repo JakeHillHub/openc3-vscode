@@ -43,6 +43,9 @@ def cmd(
     """
     ...
 
+@overload
+def cmd_no_range_check(cmd_string: str) -> None: ...
+@overload
 def cmd_no_range_check(target: str, command: str, params: Dict[str, Any]) -> None:
     """
     Sends a command through the COSMOS system, skipping the range check on parameters.
@@ -57,6 +60,9 @@ def cmd_no_range_check(target: str, command: str, params: Dict[str, Any]) -> Non
     """
     ...
 
+@overload
+def cmd_no_hazardous_check(cmd_string: str) -> None: ...
+@overload
 def cmd_no_hazardous_check(target: str, command: str, params: Dict[str, Any]) -> None:
     """
     Sends a command through the COSMOS system, skipping the hazardous command check.
@@ -71,6 +77,9 @@ def cmd_no_hazardous_check(target: str, command: str, params: Dict[str, Any]) ->
     """
     ...
 
+@overload
+def cmd_no_checks(cmd_string: str) -> None: ...
+@overload
 def cmd_no_checks(target: str, command: str, params: Dict[str, Any]) -> None:
     """
     Sends a command through the COSMOS system, skipping both range and hazardous checks.
@@ -85,6 +94,9 @@ def cmd_no_checks(target: str, command: str, params: Dict[str, Any]) -> None:
     """
     ...
 
+@overload
+def cmd_raw(cmd_string: str) -> None: ...
+@overload
 def cmd_raw(target: str, command: str, params: Dict[str, Any]) -> None:
     """
     Sends a raw command through the COSMOS system, bypassing parameter conversion.
@@ -99,6 +111,9 @@ def cmd_raw(target: str, command: str, params: Dict[str, Any]) -> None:
     """
     ...
 
+@overload
+def cmd_raw_no_range_check(cmd_string: str) -> None: ...
+@overload
 def cmd_raw_no_range_check(target: str, command: str, params: Dict[str, Any]) -> None:
     """
     Sends a raw command through the COSMOS system with no range check.
@@ -113,6 +128,9 @@ def cmd_raw_no_range_check(target: str, command: str, params: Dict[str, Any]) ->
     """
     ...
 
+@overload
+def cmd_raw_no_hazardous_check(cmd_string: str) -> None: ...
+@overload
 def cmd_raw_no_hazardous_check(
     target: str, command: str, params: Dict[str, Any]
 ) -> None:
@@ -129,6 +147,9 @@ def cmd_raw_no_hazardous_check(
     """
     ...
 
+@overload
+def cmd_raw_no_checks(cmd_string: str) -> None: ...
+@overload
 def cmd_raw_no_checks(target: str, command: str, params: Dict[str, Any]) -> None:
     """
     Sends a raw command through the COSMOS system with no checks.

@@ -501,70 +501,96 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     return item;
   }
 
+  private getRefsCmdTarget(): RefArg[] {
+    return this.db.getCmdTargets().map((t) => {
+      return { type: RefArgType.FIELD, value: t };
+    });
+  }
+
+  private getRefsCmdMnemonic(existingArgs: RefArg[]): RefArg[] {
+    const targetName = existingArgs[0];
+    if (targetName === undefined || targetName.type !== RefArgType.FIELD) {
+      throw new NoCompletion('No command target for mnemonic');
+    }
+    const targetCmds = this.db.getTargetCmds(targetName.value as string);
+
+    const cmdMnemonics: string[] = [];
+    for (const [cmdMnemonic, _] of targetCmds.entries()) {
+      cmdMnemonics.push(cmdMnemonic);
+    }
+    return cmdMnemonics.map((m) => {
+      return { type: RefArgType.FIELD, value: m };
+    });
+  }
+
+  private getRefsCmdParams(existingArgs: RefArg[]): RefArg[] {
+    const targetName = existingArgs[0];
+    if (targetName === undefined || targetName.type !== RefArgType.FIELD) {
+      throw new NoCompletion('No command target for params');
+    }
+    const cmdMnemonic = existingArgs[1];
+    if (cmdMnemonic === undefined || cmdMnemonic.type !== RefArgType.FIELD) {
+      throw new NoCompletion('No command mnemonic for params');
+    }
+    const cmds = this.db.getTargetCmds(targetName.value as string);
+    const cmdDefinition = cmds.get(cmdMnemonic.value as string);
+    if (cmdDefinition === undefined) {
+      throw new NoCompletion(`Could not find params for command mnemonic ${cmdMnemonic.value}`);
+    }
+
+    const existingParams = existingArgs.slice(2);
+    const existingParamNames = existingParams.map((p) => {
+      if (p.type === RefArgType.MAPPING) {
+        return p.value[0];
+      }
+      return ''; /* Empty string will not match any parameter */
+    });
+
+    const args: RefArg[] = [];
+    for (const param of cmdDefinition.arguments) {
+      if (existingParamNames.includes(param.name)) {
+        continue;
+      }
+
+      if (param.paramType === CmdParamType.ID_PARAMETER) {
+        continue; /* Ignore ID parameters in suggestions */
+      }
+
+      args.push({
+        type: RefArgType.CMD_PARAM,
+        value: param.name,
+        param: param,
+      });
+    }
+
+    return args;
+  }
+
+  private getRefsOptions(refArg: ScriptCompletionArg): RefArg[] {
+    if (refArg?.options === undefined) {
+      throw new NoCompletion('No options defined for options source');
+    }
+
+    const args: RefArg[] = [];
+    for (const opt of refArg.options) {
+      args.push({
+        type: RefArgType.FIELD,
+        value: opt,
+      });
+    }
+    return args;
+  }
+
   private getRefsListForArg(refArg: ScriptCompletionArg, existingArgs: RefArg[]): RefArg[] {
     switch (refArg.source) {
-      case ArgSource.CMD_TARGET: {
-        return this.db.getCmdTargets().map((t) => {
-          return { type: RefArgType.FIELD, value: t };
-        });
-      }
-      case ArgSource.CMD_MNEMONIC: {
-        const targetName = existingArgs[0];
-        if (targetName === undefined || targetName.type !== RefArgType.FIELD) {
-          throw new NoCompletion('No command target for mnemonic');
-        }
-        const targetCmds = this.db.getTargetCmds(targetName.value as string);
-
-        const cmdMnemonics: string[] = [];
-        for (const [cmdMnemonic, _] of targetCmds.entries()) {
-          cmdMnemonics.push(cmdMnemonic);
-        }
-        return cmdMnemonics.map((m) => {
-          return { type: RefArgType.FIELD, value: m };
-        });
-      }
-      case ArgSource.CMD_PARAMS: {
-        const targetName = existingArgs[0];
-        if (targetName === undefined || targetName.type !== RefArgType.FIELD) {
-          throw new NoCompletion('No command target for params');
-        }
-        const cmdMnemonic = existingArgs[1];
-        if (cmdMnemonic === undefined || cmdMnemonic.type !== RefArgType.FIELD) {
-          throw new NoCompletion('No command mnemonic for params');
-        }
-        const cmds = this.db.getTargetCmds(targetName.value as string);
-        const cmdDefinition = cmds.get(cmdMnemonic.value as string);
-        if (cmdDefinition === undefined) {
-          throw new NoCompletion(`Could not find params for command mnemonic ${cmdMnemonic.value}`);
-        }
-
-        const existingParams = existingArgs.slice(2);
-        const existingParamNames = existingParams.map((p) => {
-          if (p.type === RefArgType.MAPPING) {
-            return p.value[0];
-          }
-          return ''; /* Empty string will not match any parameter */
-        });
-
-        const args: RefArg[] = [];
-        for (const param of cmdDefinition.arguments) {
-          if (existingParamNames.includes(param.name)) {
-            continue;
-          }
-
-          if (param.paramType === CmdParamType.ID_PARAMETER) {
-            continue; /* Ignore ID parameters in suggestions */
-          }
-
-          args.push({
-            type: RefArgType.CMD_PARAM,
-            value: param.name,
-            param: param,
-          });
-        }
-
-        return args;
-      }
+      case ArgSource.CMD_TARGET:
+        return this.getRefsCmdTarget();
+      case ArgSource.CMD_MNEMONIC:
+        return this.getRefsCmdMnemonic(existingArgs);
+      case ArgSource.CMD_PARAMS:
+        return this.getRefsCmdParams(existingArgs);
+      case ArgSource.OPTIONS:
+        return this.getRefsOptions(refArg);
       default:
         throw new NoCompletion('Invalid refArg');
     }
@@ -577,7 +603,8 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     const existingArgs = this.lineContext.retrieveRefArgs(CMethods.COMMAND_INLINE);
     const argIndex = existingArgs?.length || 0; /* Default to zero if nothing could parse */
 
-    if (argIndex >= 2) {
+    if (argIndex >= 1) {
+      /* cmd("ARG1 <here>...", ...)
       /* We can be confident that this completion method is definitely inline now */
       this.lineContext.methodLocked = true;
     }
