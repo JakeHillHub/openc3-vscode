@@ -2,6 +2,11 @@ import * as vscode from 'vscode';
 import { CmdArgument, CmdParamType, CosmosCmdTlmDB, DataType, TlmField } from '../cosmos/cmdTlm';
 import { Script } from 'vm';
 
+enum GroupIndexes {
+  REF_GROUP = 0 /* Special cosmos API sources */,
+  FN_GROUP = 1 /* Regular function completion group */,
+}
+
 export enum Language {
   RUBY = 'ruby',
   PYTHON = 'python',
@@ -88,9 +93,12 @@ class LineContext {
   public text: string = '';
 
   public inlineRefQuoteInner: string = '';
-  public method: CMethods | undefined = undefined;
+  public inlineRefQuoteOuter: string = '';
 
-  public groupIndex: number = 0;
+  public method: CMethods | undefined = undefined;
+  public methodLocked: boolean = false;
+
+  public groupIndex: number = GroupIndexes.REF_GROUP; /* Always start at REF_GROUP */
 
   public activeDefinition: ScriptCompletionDefinition | undefined = undefined;
 
@@ -155,9 +163,11 @@ class LineContext {
     let inlineStrMatch = null;
     if (raw.startsWith('"')) {
       this.inlineRefQuoteInner = "'";
+      this.inlineRefQuoteOuter = '"';
       inlineStrMatch = raw.trim().match(/^"(.*?)"/); /* Capture between doubles */
     } else if (raw.startsWith("'")) {
       this.inlineRefQuoteInner = '"';
+      this.inlineRefQuoteOuter = "'";
       inlineStrMatch = raw.trim().match(/^'(.*?)'/); /* Capture between singles */
     } else {
       return undefined; /* Unknown quote type */
@@ -292,6 +302,10 @@ class LineContext {
   }
 
   public deriveCmdRefMethod(): CMethods | undefined {
+    if (this.methodLocked) {
+      return this.method;
+    }
+
     if (this.detectPositional()) {
       const positionalArgs = this.getRefArgsPositional();
       if (positionalArgs !== undefined && positionalArgs.length !== 0) {
@@ -308,6 +322,59 @@ class LineContext {
     }
 
     return undefined;
+  }
+
+  private detectGroupInline() {
+    const raw = this.getArgsRaw();
+    if (raw === undefined) {
+      return;
+    }
+
+    /* Match cmd("...", ) <- for inline syntax this is now outside the ref group (group 0) */
+    const pattern = new RegExp(`${this.inlineRefQuoteOuter},\\s+$`);
+    const result = raw.match(pattern);
+    if (result) {
+      this.groupIndex = GroupIndexes.FN_GROUP;
+    } else {
+      this.groupIndex = GroupIndexes.REF_GROUP;
+    }
+  }
+
+  private detectGroupPositional() {
+    const raw = this.getArgsRaw();
+    if (raw === undefined) {
+      return;
+    }
+    if (this.activeDefinition === undefined || this.activeDefinition.groups.length === 1) {
+      return; /* No alternate group */
+    }
+
+    const preParsed = this.parsePositionalArgs(raw);
+    const refGroupLength = this.activeDefinition.groups[GroupIndexes.REF_GROUP].args.length;
+
+    if (preParsed.length > refGroupLength) {
+      this.groupIndex = GroupIndexes.FN_GROUP;
+    } else {
+      this.groupIndex = GroupIndexes.REF_GROUP;
+    }
+  }
+
+  public detectGroup() {
+    if (!this.methodLocked) {
+      return;
+    }
+    if (this.activeDefinition?.groups.length === 1) {
+      return; /* No alternate group */
+    }
+
+    switch (this.method) {
+      case CMethods.COMMAND_INLINE:
+        this.detectGroupInline();
+        break;
+      case CMethods.COMMAND_POSITIONAL:
+        this.detectGroupPositional();
+        break;
+    }
   }
 }
 
@@ -510,6 +577,11 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     const existingArgs = this.lineContext.retrieveRefArgs(CMethods.COMMAND_INLINE);
     const argIndex = existingArgs?.length || 0; /* Default to zero if nothing could parse */
 
+    if (argIndex >= 2) {
+      /* We can be confident that this completion method is definitely inline now */
+      this.lineContext.methodLocked = true;
+    }
+
     let refArg = group.args[argIndex];
     if (refArg === undefined) {
       const lastArg = group.args.at(-1);
@@ -612,6 +684,14 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
   }
 
   private createNextCompletion(): vscode.ProviderResult<vscode.CompletionItem[]> {
+    this.lineContext.detectGroup();
+
+    if (this.lineContext.groupIndex === GroupIndexes.REF_GROUP) {
+      this.outputChannel.appendLine(`Group REF`);
+    } else {
+      this.outputChannel.appendLine(`Group FN`);
+    }
+
     const group = this.lineContext.activeDefinition?.groups[this.lineContext.groupIndex];
     if (!group) {
       return undefined;
