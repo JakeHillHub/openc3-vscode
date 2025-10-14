@@ -8,8 +8,6 @@ import {
 } from './cosmosScriptCompletion';
 import { CosmosCmdTlmDB } from '../cosmos/cmdTlm';
 
-const boolOpts = ['True', 'False'];
-
 const completionDefinitions = [
   {
     triggers: [] /* Characters that may trigger this completion ie. cmd_raw(<- trigger */,

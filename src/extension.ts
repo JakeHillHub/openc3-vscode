@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 
-import { PythonCompletionProvider } from './completions/pythonCompletionRef';
 import { CosmosCmdTlmDB } from './cosmos/cmdTlm';
 import { EditorFileManager, extensionShouldLoad, ensureVscodeSettings } from './editorFileManager';
 import { PythonStubManager } from './cosmos/pythonStubManager';
@@ -13,10 +12,11 @@ import { createCmdCompletions } from './completions/cosmosCmdCompletion';
 import { createTlmCompletions } from './completions/cosmosTlmCompletion';
 import { createTargetCompletions } from './completions/cosmosTargetCompletion';
 import { createPluginCompletions } from './completions/cosmosPluginCompletion';
+
 import {
   createPyScriptCompletions,
   createRbScriptCompletions,
-} from './completions/pythonScriptCompletions';
+} from './completions/scriptCompletionDefinitions';
 
 const cleanupResources = new Array<vscode.Disposable>();
 
