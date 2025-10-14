@@ -180,7 +180,7 @@ export class CosmosProjectSearch {
     }
 
     for (const [targetName, targetFolder] of pluginConfig.targets) {
-      if (filePath.includes(targetFolder)) {
+      if (filePath.split(path.sep).includes(targetFolder)) {
         targetNames.push(targetName);
       }
     }
