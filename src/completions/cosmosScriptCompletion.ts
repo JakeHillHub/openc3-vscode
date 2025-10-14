@@ -88,6 +88,7 @@ function stripQuoteComma(str: string): string {
  */
 class LineContext {
   private mapSeparator: string;
+  private language: Language;
 
   public lineNumber: number;
   public text: string = '';
@@ -104,6 +105,7 @@ class LineContext {
 
   constructor(lineNumber: number, language: Language) {
     this.lineNumber = lineNumber;
+    this.language = language;
 
     if (language === Language.PYTHON) {
       this.mapSeparator = ':';
@@ -121,6 +123,16 @@ class LineContext {
   public update(document: vscode.TextDocument, position: vscode.Position) {
     const line = document.lineAt(position).text;
     this.text = line.trim();
+  }
+
+  public keyValMapStr(key: string, value: string): string {
+    if (this.language === Language.PYTHON) {
+      return `${key}: ${value}`;
+    } else if (this.language === Language.RUBY) {
+      return `${key} => ${value}`;
+    } else {
+      throw new Error('Invalid language type');
+    }
   }
 
   /**
@@ -150,7 +162,7 @@ class LineContext {
       return [];
     }
 
-    return tokens.map((token) => token.trim()).filter((token) => token.length > 0);
+    return tokens.map((token) => token.trim()).filter((token) => token.length > 0 && token !== ',');
   }
 
   private getRefArgsInline(): RefArg[] | undefined {
@@ -272,16 +284,25 @@ class LineContext {
       }
 
       /* Dictionary or Hash */
-      if (posStr.match(/{.*?}/)) {
-        const s = posStr.split(this.mapSeparator);
-        if (s.length !== 2) {
-          return undefined; /* Malformed dict or hash */
-        }
-        const key = stripQuotes(s[0].trim());
-        const val = stripQuotes(s[1].trim());
-        args.push({ type: RefArgType.MAPPING, value: [key, val] });
-      } else {
+      const mapMatch = posStr.match(/{(.*?)}/);
+      if (!mapMatch) {
         args.push({ type: RefArgType.FIELD, value: stripQuoteComma(posStr) });
+      } else {
+        const [, contents] = mapMatch;
+        const keyValPairs = contents
+          .split(',')
+          .map((val) => val.trim())
+          .filter((val) => val.length > 0);
+
+        for (const keyVal of keyValPairs) {
+          const s = keyVal.split(this.mapSeparator);
+          if (s.length !== 2) {
+            return undefined; /* Malformed dict or hash */
+          }
+          const key = stripQuotes(s[0].trim());
+          const val = stripQuotes(s[1].trim());
+          args.push({ type: RefArgType.MAPPING, value: [key, val] });
+        }
       }
     }
 
@@ -345,6 +366,7 @@ class LineContext {
     if (raw === undefined) {
       return;
     }
+
     if (this.activeDefinition === undefined || this.activeDefinition.groups.length === 1) {
       return; /* No alternate group */
     }
@@ -472,6 +494,20 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     return `${coreTabstop}${finalExit}`;
   }
 
+  private generateTabstopArgsPositional(values: string[], quoteValues?: boolean): string {
+    const joinedValues = values.join(',');
+    const coreTabstop = `\${1|${joinedValues}|}`;
+    const finalExit = '$0';
+
+    if (quoteValues) {
+      /* TODO: This could be configurable by the user as "preferred quote style" */
+      const quote = '"';
+      return `${quote}${coreTabstop}${quote}${finalExit}`;
+    }
+
+    return `${coreTabstop}${finalExit}`;
+  }
+
   private createInlineCmdParamCompletion(
     label: string,
     key: string,
@@ -494,6 +530,42 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     let snippetText = `${key} ${tabStopper}`;
     if (firstParam) {
       snippetText = 'with ' + snippetText;
+    }
+    const snippet = new vscode.SnippetString(snippetText);
+
+    item.insertText = snippet;
+    return item;
+  }
+
+  private createPositionalCompletion(label: string, text: string): vscode.CompletionItem {
+    const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Field);
+    item.insertText = `"${text}"`;
+    return item;
+  }
+
+  private createPositionalCmdParamCompletion(
+    label: string,
+    key: string,
+    value: CmdArgument,
+    firstParam: boolean
+  ): vscode.CompletionItem {
+    const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Snippet);
+    let tabStopper = this.generateTabstopArgsPositional(
+      [value.defaultValue],
+      value.dataType === DataType.STRING
+    );
+
+    if (value.enumValues.size !== 0) {
+      const enumKeys: string[] = [];
+      for (const [ename, _] of value.enumValues.entries()) {
+        enumKeys.push(ename);
+      }
+      tabStopper = this.generateTabstopArgsPositional(enumKeys, true);
+    }
+
+    let snippetText = this.lineContext.keyValMapStr(`"${key}"`, tabStopper);
+    if (firstParam) {
+      snippetText = `{${snippetText}}`;
     }
     const snippet = new vscode.SnippetString(snippetText);
 
@@ -677,20 +749,20 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
       let refVal = ref.value as string;
       let label = refVal;
       if (annotate) {
-        label = label + ' (inline)';
+        label = label + ' (positional)';
       }
 
       if (ref.type === RefArgType.FIELD) {
-        if (argIndex === 0) {
-          /* First overall parameter, wrap in quotes */
-          completions.push(this.createInlineStrCompletionNewQuote(label, refVal));
-        } else {
-          completions.push(this.createInlineStrCompletion(label, refVal));
-        }
+        completions.push(this.createPositionalCompletion(label, refVal));
       } else if (ref.type === RefArgType.CMD_PARAM) {
         const firstParam = argIndex === 2;
         completions.push(
-          this.createInlineCmdParamCompletion(label, refVal, ref.param as CmdArgument, firstParam)
+          this.createPositionalCmdParamCompletion(
+            label,
+            refVal,
+            ref.param as CmdArgument,
+            firstParam
+          )
         );
       }
     }
