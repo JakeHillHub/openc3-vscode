@@ -25,15 +25,18 @@ export enum ArgSource {
   CMD_TARGET,
   CMD_MNEMONIC,
   CMD_PARAMS,
+  CMD_PARAM_NAME,
   TLM_TARGET,
   TLM_MNEMONIC,
   TLM_FIELD,
+  TLM_FIELD_COMPARISON,
   OPTIONS,
   NONE,
 }
 
 export enum GroupType {
-  CMD_TLM_REF,
+  CMD_REF,
+  TLM_REF,
   API_FN_ARGS,
 }
 
@@ -67,6 +70,7 @@ enum RefArgType {
   FIELD,
   MAPPING,
   CMD_PARAM,
+  TLM_COMP,
 }
 
 interface RefArg {
@@ -345,6 +349,27 @@ class LineContext {
     return undefined;
   }
 
+  public deriveTlmRefMethod(): CMethods | undefined {
+    if (this.methodLocked) {
+      return this.method;
+    }
+
+    if (this.detectPositional()) {
+      const positionalArgs = this.getRefArgsPositional();
+      if (positionalArgs !== undefined && positionalArgs.length !== 0) {
+        this.method = CMethods.TELEMETRY_POSITIONAL;
+        return CMethods.TELEMETRY_POSITIONAL;
+      }
+    }
+
+    const inlineArgs = this.getRefArgsInline();
+    if (inlineArgs !== undefined && inlineArgs.length >= 1) {
+      /* Starts like tlm("STRING<space>...") - 99% inline ref */
+      this.method = CMethods.TELEMETRY_INLINE;
+      return CMethods.TELEMETRY_INLINE;
+    }
+  }
+
   private detectGroupInline() {
     const raw = this.getArgsRaw();
     if (raw === undefined) {
@@ -391,10 +416,14 @@ class LineContext {
 
     switch (this.method) {
       case CMethods.COMMAND_INLINE:
+      case CMethods.TELEMETRY_INLINE:
         this.detectGroupInline();
         break;
       case CMethods.COMMAND_POSITIONAL:
+      case CMethods.TELEMETRY_POSITIONAL:
         this.detectGroupPositional();
+        break;
+      default:
         break;
     }
   }
@@ -537,6 +566,30 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     return item;
   }
 
+  private createInlineTlmCompCompletion(
+    label: string,
+    key: string,
+    value: TlmField
+  ): vscode.CompletionItem {
+    const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Snippet);
+    let tabStopper = this.generateTabstopArgs(
+      [this.db.deriveTlmFieldDefault(value)],
+      value.dataType === DataType.STRING
+    );
+    if (value.enumValues.size !== 0) {
+      const enumKeys: string[] = [];
+      for (const [ename, _] of value.enumValues.entries()) {
+        enumKeys.push(ename);
+      }
+      tabStopper = this.generateTabstopArgs(enumKeys, true);
+    }
+
+    let snippetText = `${key} ${tabStopper}`;
+    const snippet = new vscode.SnippetString(snippetText);
+    item.insertText = snippet;
+    return item;
+  }
+
   private createPositionalCompletion(label: string, text: string): vscode.CompletionItem {
     const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Field);
     item.insertText = `"${text}"`;
@@ -579,6 +632,12 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     });
   }
 
+  private getRefsTlmTarget(): RefArg[] {
+    return this.db.getTlmTargets().map((t) => {
+      return { type: RefArgType.FIELD, value: t };
+    });
+  }
+
   private getRefsCmdMnemonic(existingArgs: RefArg[]): RefArg[] {
     const targetName = existingArgs[0];
     if (targetName === undefined || targetName.type !== RefArgType.FIELD) {
@@ -591,6 +650,22 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
       cmdMnemonics.push(cmdMnemonic);
     }
     return cmdMnemonics.map((m) => {
+      return { type: RefArgType.FIELD, value: m };
+    });
+  }
+
+  private getRefsTlmMnemonic(existingArgs: RefArg[]): RefArg[] {
+    const targetName = existingArgs[0];
+    if (targetName === undefined || targetName.type !== RefArgType.FIELD) {
+      throw new NoCompletion('No telemetry target for mnemonic');
+    }
+    const targetPackets = this.db.getTargetPackets(targetName.value as string);
+
+    const packetMnemonics: string[] = [];
+    for (const [packetMnemonic, _] of targetPackets.entries()) {
+      packetMnemonics.push(packetMnemonic);
+    }
+    return packetMnemonics.map((m) => {
       return { type: RefArgType.FIELD, value: m };
     });
   }
@@ -638,6 +713,104 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     return args;
   }
 
+  private getRefsCmdParamName(existingArgs: RefArg[]): RefArg[] {
+    const targetName = existingArgs[0];
+    if (targetName === undefined || targetName.type !== RefArgType.FIELD) {
+      throw new NoCompletion('No command target for params');
+    }
+    const cmdMnemonic = existingArgs[1];
+    if (cmdMnemonic === undefined || cmdMnemonic.type !== RefArgType.FIELD) {
+      throw new NoCompletion('No command mnemonic for params');
+    }
+    const cmds = this.db.getTargetCmds(targetName.value as string);
+    const cmdDefinition = cmds.get(cmdMnemonic.value as string);
+    if (cmdDefinition === undefined) {
+      throw new NoCompletion(`Could not find params for command mnemonic ${cmdMnemonic.value}`);
+    }
+
+    const args: RefArg[] = [];
+    for (const param of cmdDefinition.arguments) {
+      if (param.paramType === CmdParamType.ID_PARAMETER) {
+        continue; /* Ignore ID parameters in suggestions */
+      }
+
+      args.push({
+        type: RefArgType.FIELD,
+        value: param.name,
+      });
+    }
+
+    return args;
+  }
+
+  private getRefsTlmField(existingArgs: RefArg[]): RefArg[] {
+    const targetName = existingArgs[0];
+    if (targetName === undefined || targetName.type !== RefArgType.FIELD) {
+      throw new NoCompletion('No telemetry target for params');
+    }
+    const tlmMnemonic = existingArgs[1];
+    if (tlmMnemonic === undefined || tlmMnemonic.type !== RefArgType.FIELD) {
+      throw new NoCompletion('No packet mnemonic for params');
+    }
+
+    const packet = this.db.getTargetPacket(targetName.value as string, tlmMnemonic.value as string);
+    if (packet === undefined) {
+      throw new NoCompletion(`Could not find params for packet mnemonic ${tlmMnemonic.value}`);
+    }
+
+    const args: RefArg[] = [];
+    for (const field of packet.fields) {
+      args.push({
+        type: RefArgType.FIELD,
+        value: field.name,
+      });
+    }
+    return args;
+  }
+
+  private getRefsTlmFieldComparison(
+    refArg: ScriptCompletionArg | undefined,
+    existingArgs: RefArg[]
+  ): RefArg[] {
+    const targetName = existingArgs[0];
+    if (targetName === undefined || targetName.type !== RefArgType.FIELD) {
+      throw new NoCompletion('No telemetry target for params');
+    }
+    const tlmMnemonic = existingArgs[1];
+    if (tlmMnemonic === undefined || tlmMnemonic.type !== RefArgType.FIELD) {
+      throw new NoCompletion('No packet mnemonic for params');
+    }
+    const tlmField = existingArgs[2];
+    if (tlmField === undefined || tlmField.type !== RefArgType.FIELD) {
+      throw new NoCompletion('No packet field for params');
+    }
+
+    if (refArg?.options === undefined) {
+      throw new NoCompletion('No options defined for options source');
+    }
+
+    const field = this.db.getTargetPacketField(
+      targetName.value as string,
+      tlmMnemonic.value as string,
+      tlmField.value as string
+    );
+    if (field === undefined) {
+      throw new NoCompletion(
+        `Could not find field ${tlmField.value} for packet mnemonic ${tlmMnemonic.value}`
+      );
+    }
+
+    const args: RefArg[] = [];
+    for (const opt of refArg.options) {
+      args.push({
+        type: RefArgType.TLM_COMP,
+        value: opt,
+        param: field,
+      });
+    }
+    return args;
+  }
+
   private getRefsOptions(refArg: ScriptCompletionArg): RefArg[] {
     if (refArg?.options === undefined) {
       throw new NoCompletion('No options defined for options source');
@@ -661,6 +834,16 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
         return this.getRefsCmdMnemonic(existingArgs);
       case ArgSource.CMD_PARAMS:
         return this.getRefsCmdParams(existingArgs);
+      case ArgSource.CMD_PARAM_NAME:
+        return this.getRefsCmdParamName(existingArgs);
+      case ArgSource.TLM_TARGET:
+        return this.getRefsTlmTarget();
+      case ArgSource.TLM_MNEMONIC:
+        return this.getRefsTlmMnemonic(existingArgs);
+      case ArgSource.TLM_FIELD:
+        return this.getRefsTlmField(existingArgs);
+      case ArgSource.TLM_FIELD_COMPARISON:
+        return this.getRefsTlmFieldComparison(refArg, existingArgs);
       case ArgSource.OPTIONS:
         return this.getRefsOptions(refArg);
       default:
@@ -668,7 +851,7 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     }
   }
 
-  private cmdTlmCompletionInline(
+  private cmdCompletionInline(
     group: ScriptCompletionArgGroup,
     annotate: boolean
   ): vscode.CompletionItem[] {
@@ -719,7 +902,52 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     return completions;
   }
 
-  private cmdTlmCompletionPositional(
+  private tlmCompletionInline(group: ScriptCompletionArgGroup, annotate: boolean) {
+    const existingArgs = this.lineContext.retrieveRefArgs(CMethods.TELEMETRY_INLINE);
+    const argIndex = existingArgs?.length || 0; /* Default to zero if nothing could parse */
+
+    if (argIndex >= 1) {
+      /* cmd("ARG1 <here>...", ...)
+      /* We can be confident that this completion method is definitely inline now */
+      this.lineContext.methodLocked = true;
+    }
+
+    let refArg = group.args[argIndex];
+    if (refArg === undefined) {
+      const lastArg = group.args.at(-1);
+      /* If this is variable length parameters we can proceed always */
+      if (lastArg === undefined || lastArg.source !== ArgSource.CMD_PARAMS) {
+        /* If it was not variable length parameters we are done with completions */
+        throw new NoCompletion('No more args to complete');
+      }
+      refArg = lastArg;
+    }
+
+    const completions: vscode.CompletionItem[] = [];
+    const refsList = this.getRefsListForArg(refArg, existingArgs || []);
+    for (const ref of refsList) {
+      let refVal = ref.value as string;
+      let label = refVal;
+      if (annotate) {
+        label = label + ' (inline)';
+      }
+
+      if (ref.type === RefArgType.FIELD) {
+        if (argIndex === 0) {
+          /* First overall parameter, wrap in quotes */
+          completions.push(this.createInlineStrCompletionNewQuote(label, refVal));
+        } else {
+          completions.push(this.createInlineStrCompletion(label, refVal));
+        }
+      } else if (ref.type === RefArgType.TLM_COMP) {
+        completions.push(this.createInlineTlmCompCompletion(label, refVal, ref.param as TlmField));
+      }
+    }
+
+    return completions;
+  }
+
+  private cmdCompletionPositional(
     group: ScriptCompletionArgGroup,
     annotate: boolean
   ): vscode.CompletionItem[] {
@@ -770,28 +998,69 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     return completions;
   }
 
-  private getCmdCompletion(
+  private tlmCompletionPositional(group: ScriptCompletionArgGroup, annotate: boolean) {
+    const existingArgs = this.lineContext.retrieveRefArgs(CMethods.TELEMETRY_POSITIONAL);
+    const argIndex = existingArgs?.length || 0; /* Default to zero if nothing could parse */
+
+    if (argIndex >= 1) {
+      /* cmd("ARG1", <here>) */
+      /* We can be confident that this completion method is definitely positional now */
+      this.lineContext.methodLocked = true;
+    }
+
+    let refArg = group.args[argIndex];
+    if (refArg === undefined) {
+      /* Simpler than cmd, no variadic parameter lengths to deal with */
+      throw new NoCompletion('No more args to complete');
+    }
+
+    const completions: vscode.CompletionItem[] = [];
+    const refsList = this.getRefsListForArg(refArg, existingArgs || []);
+    for (const ref of refsList) {
+      let refVal = ref.value as string;
+      let label = refVal;
+      if (annotate) {
+        label = label + ' (positional)';
+      }
+
+      completions.push(this.createPositionalCompletion(label, refVal));
+    }
+
+    return completions;
+  }
+
+  private generateCmdTlmCompletion(
     method: CMethods,
     group: ScriptCompletionArgGroup,
     annotate: boolean
   ): vscode.CompletionItem[] {
     switch (method) {
       case CMethods.COMMAND_INLINE:
-        return this.cmdTlmCompletionInline(group, annotate);
+        return this.cmdCompletionInline(group, annotate);
       case CMethods.COMMAND_POSITIONAL:
-        return this.cmdTlmCompletionPositional(group, annotate);
+        return this.cmdCompletionPositional(group, annotate);
+      case CMethods.TELEMETRY_INLINE:
+        return this.tlmCompletionInline(group, annotate);
+      case CMethods.TELEMETRY_POSITIONAL:
+        return this.tlmCompletionPositional(group, annotate);
       default:
         throw new NoCompletion('Impossible completion method');
     }
   }
 
   private cmdTlmCompletions(
+    refType: GroupType,
     group: ScriptCompletionArgGroup
   ): vscode.ProviderResult<vscode.CompletionItem[]> {
     /* Try immediate solution first */
-    const derivedMethod = this.lineContext.deriveCmdRefMethod();
+    let derivedMethod = undefined;
+    if (refType === GroupType.CMD_REF) {
+      derivedMethod = this.lineContext.deriveCmdRefMethod();
+    } else if (refType === GroupType.TLM_REF) {
+      derivedMethod = this.lineContext.deriveTlmRefMethod();
+    }
     if (derivedMethod !== undefined) {
-      return this.getCmdCompletion(derivedMethod, group, false);
+      return this.generateCmdTlmCompletion(derivedMethod, group, false);
     }
 
     /* If undecided return list of all available completions with method annotations */
@@ -801,7 +1070,7 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     for (const method of group.methods) {
       /* Aggregate all methods with annotations */
       try {
-        completionItems.push(...this.getCmdCompletion(method, group, true));
+        completionItems.push(...this.generateCmdTlmCompletion(method, group, true));
       } catch (e) {
         if (e instanceof NoCompletion) {
           err = e;
@@ -841,8 +1110,10 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     }
 
     switch (group.type) {
-      case GroupType.CMD_TLM_REF:
-        return this.cmdTlmCompletions(group);
+      case GroupType.CMD_REF:
+        return this.cmdTlmCompletions(GroupType.CMD_REF, group);
+      case GroupType.TLM_REF:
+        return this.cmdTlmCompletions(GroupType.TLM_REF, group);
       case GroupType.API_FN_ARGS:
         return this.apiFnCompletions(group);
       default:

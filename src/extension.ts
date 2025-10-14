@@ -13,7 +13,10 @@ import { createCmdCompletions } from './completions/cosmosCmdCompletion';
 import { createTlmCompletions } from './completions/cosmosTlmCompletion';
 import { createTargetCompletions } from './completions/cosmosTargetCompletion';
 import { createPluginCompletions } from './completions/cosmosPluginCompletion';
-import { createPyScriptCompletions } from './completions/pythonScriptCompletions';
+import {
+  createPyScriptCompletions,
+  createRbScriptCompletions,
+} from './completions/pythonScriptCompletions';
 
 const cleanupResources = new Array<vscode.Disposable>();
 
@@ -70,6 +73,13 @@ export async function activate(context: vscode.ExtensionContext) {
     ...pyComplete.triggerChars
   );
 
+  const rbComplete = createRbScriptCompletions(outputChannel, cmdTlmDB);
+  const rbScriptProvider = vscode.languages.registerCompletionItemProvider(
+    [rbComplete.language],
+    rbComplete,
+    ...rbComplete.triggerChars
+  );
+
   const editorFileWatchers = editorFileManager.createOpenC3Watchers(cmdTlmDB);
   const erbViewCmd = editorFileManager.createERBViewCommand();
 
@@ -77,6 +87,7 @@ export async function activate(context: vscode.ExtensionContext) {
     erbViewCmd,
 
     pyScriptProvider,
+    rbScriptProvider,
 
     ...pyComplete.additionalSubscriptions,
     ...editorFileWatchers,
