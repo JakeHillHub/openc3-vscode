@@ -8,18 +8,18 @@ script : commandCall+ EOF;
 // A high-level rule covering all potential command call styles.
 commandCall 
     // FIXED: Use the capitalized tokens (CMD, CMD_RAW, TLM) directly here.
-    : (CMD | CMD_RAW | TLM) OPEN_PAREN argumentList CLOSE_PAREN 
+    : (CMD | CMD_RAW | TLM) OPEN_PAREN cmdArgumentList CLOSE_PAREN 
     ;
 
 // Handles the internal structure of arguments, which can be a single string 
 // or a sequence of comma-separated expressions.
-argumentList 
-    : stringArgList                     // e.g., cmd("TARGET CMD with P V")
-    | commaSeparatedList                // e.g., cmd("TGT", "CMD", ...)
+cmdArgumentList 
+    : cmdInlineArgList                     // e.g., cmd("TARGET CMD with P V")
+    | cmdPositionalArgList                // e.g., cmd("TGT", "CMD", ...)
     ;
 
 // Style 1: Single, space-delimited string argument with optional 'with' mappings
-stringArgList
+cmdInlineArgList
     : QUOTED_STRING (WITH parameterMapping)?
     ;
 
@@ -30,7 +30,7 @@ parameterMapping
     ;
 
 // Style 2: Comma-separated list of arguments (TGT, MNEMONIC, {PARAMS})
-commaSeparatedList
+cmdPositionalArgList
     : commandExpression (COMMA commandExpression)*
     ;
 
