@@ -5,10 +5,10 @@ import { ParseTreeVisitor } from "antlr4ts/tree/ParseTreeVisitor";
 
 import { ScriptContext } from "./CosmosScriptParser";
 import { CommandCallContext } from "./CosmosScriptParser";
-import { ArgumentListContext } from "./CosmosScriptParser";
-import { StringArgListContext } from "./CosmosScriptParser";
+import { CmdArgumentListContext } from "./CosmosScriptParser";
+import { CmdInlineArgListContext } from "./CosmosScriptParser";
 import { ParameterMappingContext } from "./CosmosScriptParser";
-import { CommaSeparatedListContext } from "./CosmosScriptParser";
+import { CmdPositionalArgListContext } from "./CosmosScriptParser";
 import { CommandExpressionContext } from "./CosmosScriptParser";
 
 
@@ -35,18 +35,18 @@ export interface CosmosScriptVisitor<Result> extends ParseTreeVisitor<Result> {
 	visitCommandCall?: (ctx: CommandCallContext) => Result;
 
 	/**
-	 * Visit a parse tree produced by `CosmosScriptParser.argumentList`.
+	 * Visit a parse tree produced by `CosmosScriptParser.cmdArgumentList`.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	visitArgumentList?: (ctx: ArgumentListContext) => Result;
+	visitCmdArgumentList?: (ctx: CmdArgumentListContext) => Result;
 
 	/**
-	 * Visit a parse tree produced by `CosmosScriptParser.stringArgList`.
+	 * Visit a parse tree produced by `CosmosScriptParser.cmdInlineArgList`.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	visitStringArgList?: (ctx: StringArgListContext) => Result;
+	visitCmdInlineArgList?: (ctx: CmdInlineArgListContext) => Result;
 
 	/**
 	 * Visit a parse tree produced by `CosmosScriptParser.parameterMapping`.
@@ -56,11 +56,11 @@ export interface CosmosScriptVisitor<Result> extends ParseTreeVisitor<Result> {
 	visitParameterMapping?: (ctx: ParameterMappingContext) => Result;
 
 	/**
-	 * Visit a parse tree produced by `CosmosScriptParser.commaSeparatedList`.
+	 * Visit a parse tree produced by `CosmosScriptParser.cmdPositionalArgList`.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	visitCommaSeparatedList?: (ctx: CommaSeparatedListContext) => Result;
+	visitCmdPositionalArgList?: (ctx: CmdPositionalArgListContext) => Result;
 
 	/**
 	 * Visit a parse tree produced by `CosmosScriptParser.commandExpression`.

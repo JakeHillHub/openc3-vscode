@@ -44,15 +44,15 @@ export class CosmosScriptParser extends Parser {
 	public static readonly WS = 14;
 	public static readonly RULE_script = 0;
 	public static readonly RULE_commandCall = 1;
-	public static readonly RULE_argumentList = 2;
-	public static readonly RULE_stringArgList = 3;
+	public static readonly RULE_cmdArgumentList = 2;
+	public static readonly RULE_cmdInlineArgList = 3;
 	public static readonly RULE_parameterMapping = 4;
-	public static readonly RULE_commaSeparatedList = 5;
+	public static readonly RULE_cmdPositionalArgList = 5;
 	public static readonly RULE_commandExpression = 6;
 	// tslint:disable:no-trailing-whitespace
 	public static readonly ruleNames: string[] = [
-		"script", "commandCall", "argumentList", "stringArgList", "parameterMapping", 
-		"commaSeparatedList", "commandExpression",
+		"script", "commandCall", "cmdArgumentList", "cmdInlineArgList", "parameterMapping", 
+		"cmdPositionalArgList", "commandExpression",
 	];
 
 	private static readonly _LITERAL_NAMES: Array<string | undefined> = [
@@ -153,7 +153,7 @@ export class CosmosScriptParser extends Parser {
 			this.state = 22;
 			this.match(CosmosScriptParser.OPEN_PAREN);
 			this.state = 23;
-			this.argumentList();
+			this.cmdArgumentList();
 			this.state = 24;
 			this.match(CosmosScriptParser.CLOSE_PAREN);
 			}
@@ -173,9 +173,9 @@ export class CosmosScriptParser extends Parser {
 		return _localctx;
 	}
 	// @RuleVersion(0)
-	public argumentList(): ArgumentListContext {
-		let _localctx: ArgumentListContext = new ArgumentListContext(this._ctx, this.state);
-		this.enterRule(_localctx, 4, CosmosScriptParser.RULE_argumentList);
+	public cmdArgumentList(): CmdArgumentListContext {
+		let _localctx: CmdArgumentListContext = new CmdArgumentListContext(this._ctx, this.state);
+		this.enterRule(_localctx, 4, CosmosScriptParser.RULE_cmdArgumentList);
 		try {
 			this.state = 28;
 			this._errHandler.sync(this);
@@ -184,7 +184,7 @@ export class CosmosScriptParser extends Parser {
 				this.enterOuterAlt(_localctx, 1);
 				{
 				this.state = 26;
-				this.stringArgList();
+				this.cmdInlineArgList();
 				}
 				break;
 
@@ -192,7 +192,7 @@ export class CosmosScriptParser extends Parser {
 				this.enterOuterAlt(_localctx, 2);
 				{
 				this.state = 27;
-				this.commaSeparatedList();
+				this.cmdPositionalArgList();
 				}
 				break;
 			}
@@ -212,9 +212,9 @@ export class CosmosScriptParser extends Parser {
 		return _localctx;
 	}
 	// @RuleVersion(0)
-	public stringArgList(): StringArgListContext {
-		let _localctx: StringArgListContext = new StringArgListContext(this._ctx, this.state);
-		this.enterRule(_localctx, 6, CosmosScriptParser.RULE_stringArgList);
+	public cmdInlineArgList(): CmdInlineArgListContext {
+		let _localctx: CmdInlineArgListContext = new CmdInlineArgListContext(this._ctx, this.state);
+		this.enterRule(_localctx, 6, CosmosScriptParser.RULE_cmdInlineArgList);
 		let _la: number;
 		try {
 			this.enterOuterAlt(_localctx, 1);
@@ -314,9 +314,9 @@ export class CosmosScriptParser extends Parser {
 		return _localctx;
 	}
 	// @RuleVersion(0)
-	public commaSeparatedList(): CommaSeparatedListContext {
-		let _localctx: CommaSeparatedListContext = new CommaSeparatedListContext(this._ctx, this.state);
-		this.enterRule(_localctx, 10, CosmosScriptParser.RULE_commaSeparatedList);
+	public cmdPositionalArgList(): CmdPositionalArgListContext {
+		let _localctx: CmdPositionalArgListContext = new CmdPositionalArgListContext(this._ctx, this.state);
+		this.enterRule(_localctx, 10, CosmosScriptParser.RULE_cmdPositionalArgList);
 		let _la: number;
 		try {
 			this.enterOuterAlt(_localctx, 1);
@@ -469,8 +469,8 @@ export class ScriptContext extends ParserRuleContext {
 
 export class CommandCallContext extends ParserRuleContext {
 	public OPEN_PAREN(): TerminalNode { return this.getToken(CosmosScriptParser.OPEN_PAREN, 0); }
-	public argumentList(): ArgumentListContext {
-		return this.getRuleContext(0, ArgumentListContext);
+	public cmdArgumentList(): CmdArgumentListContext {
+		return this.getRuleContext(0, CmdArgumentListContext);
 	}
 	public CLOSE_PAREN(): TerminalNode { return this.getToken(CosmosScriptParser.CLOSE_PAREN, 0); }
 	public CMD(): TerminalNode | undefined { return this.tryGetToken(CosmosScriptParser.CMD, 0); }
@@ -504,34 +504,34 @@ export class CommandCallContext extends ParserRuleContext {
 }
 
 
-export class ArgumentListContext extends ParserRuleContext {
-	public stringArgList(): StringArgListContext | undefined {
-		return this.tryGetRuleContext(0, StringArgListContext);
+export class CmdArgumentListContext extends ParserRuleContext {
+	public cmdInlineArgList(): CmdInlineArgListContext | undefined {
+		return this.tryGetRuleContext(0, CmdInlineArgListContext);
 	}
-	public commaSeparatedList(): CommaSeparatedListContext | undefined {
-		return this.tryGetRuleContext(0, CommaSeparatedListContext);
+	public cmdPositionalArgList(): CmdPositionalArgListContext | undefined {
+		return this.tryGetRuleContext(0, CmdPositionalArgListContext);
 	}
 	constructor(parent: ParserRuleContext | undefined, invokingState: number) {
 		super(parent, invokingState);
 	}
 	// @Override
-	public get ruleIndex(): number { return CosmosScriptParser.RULE_argumentList; }
+	public get ruleIndex(): number { return CosmosScriptParser.RULE_cmdArgumentList; }
 	// @Override
 	public enterRule(listener: CosmosScriptListener): void {
-		if (listener.enterArgumentList) {
-			listener.enterArgumentList(this);
+		if (listener.enterCmdArgumentList) {
+			listener.enterCmdArgumentList(this);
 		}
 	}
 	// @Override
 	public exitRule(listener: CosmosScriptListener): void {
-		if (listener.exitArgumentList) {
-			listener.exitArgumentList(this);
+		if (listener.exitCmdArgumentList) {
+			listener.exitCmdArgumentList(this);
 		}
 	}
 	// @Override
 	public accept<Result>(visitor: CosmosScriptVisitor<Result>): Result {
-		if (visitor.visitArgumentList) {
-			return visitor.visitArgumentList(this);
+		if (visitor.visitCmdArgumentList) {
+			return visitor.visitCmdArgumentList(this);
 		} else {
 			return visitor.visitChildren(this);
 		}
@@ -539,7 +539,7 @@ export class ArgumentListContext extends ParserRuleContext {
 }
 
 
-export class StringArgListContext extends ParserRuleContext {
+export class CmdInlineArgListContext extends ParserRuleContext {
 	public QUOTED_STRING(): TerminalNode { return this.getToken(CosmosScriptParser.QUOTED_STRING, 0); }
 	public WITH(): TerminalNode | undefined { return this.tryGetToken(CosmosScriptParser.WITH, 0); }
 	public parameterMapping(): ParameterMappingContext | undefined {
@@ -549,23 +549,23 @@ export class StringArgListContext extends ParserRuleContext {
 		super(parent, invokingState);
 	}
 	// @Override
-	public get ruleIndex(): number { return CosmosScriptParser.RULE_stringArgList; }
+	public get ruleIndex(): number { return CosmosScriptParser.RULE_cmdInlineArgList; }
 	// @Override
 	public enterRule(listener: CosmosScriptListener): void {
-		if (listener.enterStringArgList) {
-			listener.enterStringArgList(this);
+		if (listener.enterCmdInlineArgList) {
+			listener.enterCmdInlineArgList(this);
 		}
 	}
 	// @Override
 	public exitRule(listener: CosmosScriptListener): void {
-		if (listener.exitStringArgList) {
-			listener.exitStringArgList(this);
+		if (listener.exitCmdInlineArgList) {
+			listener.exitCmdInlineArgList(this);
 		}
 	}
 	// @Override
 	public accept<Result>(visitor: CosmosScriptVisitor<Result>): Result {
-		if (visitor.visitStringArgList) {
-			return visitor.visitStringArgList(this);
+		if (visitor.visitCmdInlineArgList) {
+			return visitor.visitCmdInlineArgList(this);
 		} else {
 			return visitor.visitChildren(this);
 		}
@@ -620,7 +620,7 @@ export class ParameterMappingContext extends ParserRuleContext {
 }
 
 
-export class CommaSeparatedListContext extends ParserRuleContext {
+export class CmdPositionalArgListContext extends ParserRuleContext {
 	public commandExpression(): CommandExpressionContext[];
 	public commandExpression(i: number): CommandExpressionContext;
 	public commandExpression(i?: number): CommandExpressionContext | CommandExpressionContext[] {
@@ -643,23 +643,23 @@ export class CommaSeparatedListContext extends ParserRuleContext {
 		super(parent, invokingState);
 	}
 	// @Override
-	public get ruleIndex(): number { return CosmosScriptParser.RULE_commaSeparatedList; }
+	public get ruleIndex(): number { return CosmosScriptParser.RULE_cmdPositionalArgList; }
 	// @Override
 	public enterRule(listener: CosmosScriptListener): void {
-		if (listener.enterCommaSeparatedList) {
-			listener.enterCommaSeparatedList(this);
+		if (listener.enterCmdPositionalArgList) {
+			listener.enterCmdPositionalArgList(this);
 		}
 	}
 	// @Override
 	public exitRule(listener: CosmosScriptListener): void {
-		if (listener.exitCommaSeparatedList) {
-			listener.exitCommaSeparatedList(this);
+		if (listener.exitCmdPositionalArgList) {
+			listener.exitCmdPositionalArgList(this);
 		}
 	}
 	// @Override
 	public accept<Result>(visitor: CosmosScriptVisitor<Result>): Result {
-		if (visitor.visitCommaSeparatedList) {
-			return visitor.visitCommaSeparatedList(this);
+		if (visitor.visitCmdPositionalArgList) {
+			return visitor.visitCmdPositionalArgList(this);
 		} else {
 			return visitor.visitChildren(this);
 		}

@@ -5,10 +5,10 @@ import { ParseTreeListener } from "antlr4ts/tree/ParseTreeListener";
 
 import { ScriptContext } from "./CosmosScriptParser";
 import { CommandCallContext } from "./CosmosScriptParser";
-import { ArgumentListContext } from "./CosmosScriptParser";
-import { StringArgListContext } from "./CosmosScriptParser";
+import { CmdArgumentListContext } from "./CosmosScriptParser";
+import { CmdInlineArgListContext } from "./CosmosScriptParser";
 import { ParameterMappingContext } from "./CosmosScriptParser";
-import { CommaSeparatedListContext } from "./CosmosScriptParser";
+import { CmdPositionalArgListContext } from "./CosmosScriptParser";
 import { CommandExpressionContext } from "./CosmosScriptParser";
 
 
@@ -40,26 +40,26 @@ export interface CosmosScriptListener extends ParseTreeListener {
 	exitCommandCall?: (ctx: CommandCallContext) => void;
 
 	/**
-	 * Enter a parse tree produced by `CosmosScriptParser.argumentList`.
+	 * Enter a parse tree produced by `CosmosScriptParser.cmdArgumentList`.
 	 * @param ctx the parse tree
 	 */
-	enterArgumentList?: (ctx: ArgumentListContext) => void;
+	enterCmdArgumentList?: (ctx: CmdArgumentListContext) => void;
 	/**
-	 * Exit a parse tree produced by `CosmosScriptParser.argumentList`.
+	 * Exit a parse tree produced by `CosmosScriptParser.cmdArgumentList`.
 	 * @param ctx the parse tree
 	 */
-	exitArgumentList?: (ctx: ArgumentListContext) => void;
+	exitCmdArgumentList?: (ctx: CmdArgumentListContext) => void;
 
 	/**
-	 * Enter a parse tree produced by `CosmosScriptParser.stringArgList`.
+	 * Enter a parse tree produced by `CosmosScriptParser.cmdInlineArgList`.
 	 * @param ctx the parse tree
 	 */
-	enterStringArgList?: (ctx: StringArgListContext) => void;
+	enterCmdInlineArgList?: (ctx: CmdInlineArgListContext) => void;
 	/**
-	 * Exit a parse tree produced by `CosmosScriptParser.stringArgList`.
+	 * Exit a parse tree produced by `CosmosScriptParser.cmdInlineArgList`.
 	 * @param ctx the parse tree
 	 */
-	exitStringArgList?: (ctx: StringArgListContext) => void;
+	exitCmdInlineArgList?: (ctx: CmdInlineArgListContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `CosmosScriptParser.parameterMapping`.
@@ -73,15 +73,15 @@ export interface CosmosScriptListener extends ParseTreeListener {
 	exitParameterMapping?: (ctx: ParameterMappingContext) => void;
 
 	/**
-	 * Enter a parse tree produced by `CosmosScriptParser.commaSeparatedList`.
+	 * Enter a parse tree produced by `CosmosScriptParser.cmdPositionalArgList`.
 	 * @param ctx the parse tree
 	 */
-	enterCommaSeparatedList?: (ctx: CommaSeparatedListContext) => void;
+	enterCmdPositionalArgList?: (ctx: CmdPositionalArgListContext) => void;
 	/**
-	 * Exit a parse tree produced by `CosmosScriptParser.commaSeparatedList`.
+	 * Exit a parse tree produced by `CosmosScriptParser.cmdPositionalArgList`.
 	 * @param ctx the parse tree
 	 */
-	exitCommaSeparatedList?: (ctx: CommaSeparatedListContext) => void;
+	exitCmdPositionalArgList?: (ctx: CmdPositionalArgListContext) => void;
 
 	/**
 	 * Enter a parse tree produced by `CosmosScriptParser.commandExpression`.

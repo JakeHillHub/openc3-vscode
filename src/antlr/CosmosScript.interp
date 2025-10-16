@@ -35,10 +35,10 @@ WS
 rule names:
 script
 commandCall
-argumentList
-stringArgList
+cmdArgumentList
+cmdInlineArgList
 parameterMapping
-commaSeparatedList
+cmdPositionalArgList
 commandExpression
 
 
