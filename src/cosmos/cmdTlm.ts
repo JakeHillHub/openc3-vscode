@@ -560,6 +560,8 @@ export class TlmFileParser {
   private parserState: TlmParserState = TlmParserState.PACKET_DECL;
   private lineNumber: number = 0;
 
+  private builtinTlmFields = new Array<TlmField>();
+
   private packets: Array<TlmDefinition> = new Array<TlmDefinition>();
 
   // Stash currently parsing telemetry info in these private vars
@@ -569,6 +571,47 @@ export class TlmFileParser {
   public constructor(filePath: string, outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
     this.path = filePath;
+
+    this.populateBuiltinTlmFields();
+  }
+
+  private newBuiltinTlmField(fieldName: string, dataType: DataType, description: string): TlmField {
+    return {
+      name: fieldName,
+      idValue: 0 /* Unused for regular items */,
+      dataType: dataType,
+      fieldType: TlmFieldType.ITEM,
+      arrayDataType: undefined,
+      description: description,
+      endianness: this.currTlmDecl?.endianness || Endianness.LITTLE,
+      enumValues: new Map<string, any>(),
+    };
+  }
+
+  private populateBuiltinTlmFields() {
+    this.builtinTlmFields.push(
+      this.newBuiltinTlmField('PACKET_TIMESECONDS', DataType.FLOAT, 'Last packet timestamp epoch')
+    );
+    this.builtinTlmFields.push(
+      this.newBuiltinTlmField(
+        'PACKET_TIMEFORMATTED',
+        DataType.STRING,
+        'Last packet timestamp string human readable'
+      )
+    );
+    this.builtinTlmFields.push(
+      this.newBuiltinTlmField('RECEIVED_TIMESECONDS', DataType.FLOAT, 'Received timestamp epoch')
+    );
+    this.builtinTlmFields.push(
+      this.newBuiltinTlmField(
+        'RECEIVED_TIMEFORMATTED',
+        DataType.STRING,
+        'Received timestamp string human readable'
+      )
+    );
+    this.builtinTlmFields.push(
+      this.newBuiltinTlmField('RECEIVED_COUNT', DataType.UINT, 'Received count')
+    );
   }
 
   public getPackets(): Array<TlmDefinition> {
@@ -724,6 +767,10 @@ export class TlmFileParser {
     };
 
     for (const param of this.currTlmFields) {
+      tlmDefinition.fields.push(param);
+    }
+
+    for (const param of this.builtinTlmFields) {
       tlmDefinition.fields.push(param);
     }
 
