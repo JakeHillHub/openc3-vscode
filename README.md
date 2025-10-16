@@ -6,7 +6,15 @@ This repository contains source code for the ongoing development of an openc3 vs
 
 ### Scripting completions/suggestions
 
-Supports python and ruby\*
+Python:
+
+- Suggestions/Autocompletions for most common api functions ie. `cmd,tlm,wait_check,etc.`
+- Full API stub injection with type info
+- `load_utility('<plugin/path>')` dynamically resolves imports (if source exists in your workspace)
+
+Ruby:
+
+- Suggestions/Autocompletions for most common api functions ie. `cmd,tlm,wait_check,etc.`
 
 ### Configuration completions/suggestions and highlighting
 
@@ -57,7 +65,7 @@ This extension contributes the following settings:
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+\*Ruby API stubs are not implemented (yet?)
 
 ## Release Notes
 
