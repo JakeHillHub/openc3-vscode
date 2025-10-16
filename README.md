@@ -12,7 +12,9 @@ NOTE: This extension will only activate if your workspace contains ALL of the fo
 ## Features
 
 Configuration completions/suggestions and highlighting
-![command-completion](images/cmd-completion.gif)
+<video src="images/cmd-completion.mp4" controls width="100%">
+Sorry, your browser doesn't support embedded videos.
+</video>
 
 ## Requirements
 
