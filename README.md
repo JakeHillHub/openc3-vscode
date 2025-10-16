@@ -1,5 +1,7 @@
 # openc3 vscode - BETA
 
+NOTE: This is not an official OpenC3 extension and is not maintained by the OpenC3 team. For bugs/feedback, use this [Issue Tracker](https://github.com/JakeHillHub/openc3-vscode/issues)
+
 This extension aims to assist in the local development of openc3/cosmos plugins/scripts.
 
 ## Features
@@ -20,22 +22,22 @@ Ruby:
 
 - Suggestions/Autocompletions for most common api functions ie. `cmd,tlm,wait_check,etc.`
 
-<video src="https://github.com/user-attachments/assets/f6abc068-c454-40ee-b7d5-33b0c708e781" 
-       loop 
-       autoplay 
-       muted 
-       playsinline 
+<video src="https://github.com/user-attachments/assets/f6abc068-c454-40ee-b7d5-33b0c708e781"
+       loop
+       autoplay
+       muted
+       playsinline
        width="100%">
 Your browser does not support the video tag.
 </video>
 
 ### Configuration completions/suggestions and highlighting
 
-<video src="https://github.com/user-attachments/assets/8fb25873-d465-4e66-86e1-29c93e9dfece" 
-       loop 
-       autoplay 
-       muted 
-       playsinline 
+<video src="https://github.com/user-attachments/assets/8fb25873-d465-4e66-86e1-29c93e9dfece"
+       loop
+       autoplay
+       muted
+       playsinline
        width="100%">
 Your browser does not support the video tag.
 </video>
@@ -44,11 +46,11 @@ Your browser does not support the video tag.
 
 Open from command palette with `openc3.showERB` - or click the `eye` icon in the top right
 
-<video src="https://github.com/user-attachments/assets/f915d79a-60a8-4708-b55d-7ac0495b1898" 
-       loop 
-       autoplay 
-       muted 
-       playsinline 
+<video src="https://github.com/user-attachments/assets/f915d79a-60a8-4708-b55d-7ac0495b1898"
+       loop
+       autoplay
+       muted
+       playsinline
        width="100%">
 Your browser does not support the video tag.
 </video>
