@@ -1,8 +1,10 @@
 {
   "name": "openc3",
-  "displayName": "openc3",
+  "displayName": "OpenC3 Extension (BETA)",
   "description": "openc3 local development support, cmd/tlm, scripting, etc.",
-  "version": "0.0.1",
+  "version": "0.0.1-beta",
+  "publisher": "TODO",
+  "license": "SEE LICENSE",
   "engines": {
     "vscode": "^1.104.0"
   },
@@ -10,7 +12,17 @@
     "type": "git",
     "url": "https://github.com/JakeHillHub/openc3-vscode"
   },
+  "bugs": {
+    "url": "https://github.com/JakeHillHub/openc3-vscode/issues"
+  },
+  "keywords": [
+    "OpenC3",
+    "Cosmos"
+  ],
+  "icon": "openc3-logo.png",
   "categories": [
+    "Programming Languages",
+    "Language Packs",
     "Other"
   ],
   "activationEvents": [
