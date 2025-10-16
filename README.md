@@ -15,6 +15,17 @@ Configuration completions/suggestions and highlighting
 Your browser does not support the video tag.
 </video>
 
+ERB (embedded ruby) viewer
+
+<video src="https://github.com/user-attachments/assets/f915d79a-60a8-4708-b55d-7ac0495b1898" 
+       loop 
+       autoplay 
+       muted 
+       playsinline 
+       width="100%">
+Your browser does not support the video tag.
+</video>
+
 ## Requirements
 
 NOTE: This extension will only activate if your workspace contains ALL of the following:
