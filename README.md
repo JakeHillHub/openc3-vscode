@@ -12,9 +12,7 @@ NOTE: This extension will only activate if your workspace contains ALL of the fo
 ## Features
 
 Configuration completions/suggestions and highlighting
-<video src="images/cmd-completion.mp4" controls width="100%">
-Sorry, your browser doesn't support embedded videos.
-</video>
+<video src="<video controls src="https://github.com/JakeHillHub/openc3-vscode/blob/release-beta/images/cmd-completion.mp4" title="images/cmd-completion.mp4">
 
 ## Requirements
 
