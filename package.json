@@ -3,10 +3,10 @@
   "displayName": "OpenC3 Extension (BETA)",
   "description": "openc3 local development support, cmd/tlm, scripting, etc.",
   "version": "0.0.1-beta",
-  "publisher": "TODO",
+  "publisher": "JakeHill",
   "license": "SEE LICENSE",
   "engines": {
-    "vscode": "^1.104.0"
+    "vscode": "^1.90.0"
   },
   "repository": {
     "type": "git",
@@ -165,6 +165,7 @@
     "@typescript-eslint/parser": "^8.42.0",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.6.2",
     "esbuild": "^0.25.9",
     "eslint": "^9.34.0",
     "fs-extra": "^11.3.2",
