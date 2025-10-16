@@ -8,6 +8,15 @@ This repository contains source code for the ongoing development of an openc3 vs
 
 Supports python and ruby\*
 
+<video src="https://github.com/user-attachments/assets/f6abc068-c454-40ee-b7d5-33b0c708e781" 
+       loop 
+       autoplay 
+       muted 
+       playsinline 
+       width="100%">
+Your browser does not support the video tag.
+</video>
+
 ### Configuration completions/suggestions and highlighting
 
 <video src="https://github.com/user-attachments/assets/8fb25873-d465-4e66-86e1-29c93e9dfece" 
