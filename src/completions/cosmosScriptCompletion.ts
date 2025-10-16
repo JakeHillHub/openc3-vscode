@@ -448,7 +448,6 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
   ) {
     this.lineContext = new LineContext(-1, language);
     this.outputChannel = outputChannel;
-    this.outputChannel.show(true);
 
     this._language = language;
 
@@ -1097,12 +1096,6 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
 
   private createNextCompletion(): vscode.ProviderResult<vscode.CompletionItem[]> {
     this.lineContext.detectGroup();
-
-    if (this.lineContext.groupIndex === GroupIndexes.REF_GROUP) {
-      this.outputChannel.appendLine(`Group REF`);
-    } else {
-      this.outputChannel.appendLine(`Group FN`);
-    }
 
     const group = this.lineContext.activeDefinition?.groups[this.lineContext.groupIndex];
     if (!group) {

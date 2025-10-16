@@ -1,71 +1,160 @@
-# openc3 README
+# openc3 vscode - BETA
 
-This is the README for your extension "openc3". After writing up a brief description, we recommend including the following sections.
+This extension aims to assist in the local development of openc3/cosmos plugins/scripts.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+### Works with many plugin directories in a single workspace/folder
 
-For example if there is an image subfolder under your extension project workspace:
+Extension is not strict about structure/layout. Entire workspace is scanned and contextualized to generate cmd/tlm definitions etc.
 
-\!\[feature X\]\(images/feature-x.png\)
+### Scripting completions/suggestions
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+Python:
+
+- Suggestions/Autocompletions for most common api functions ie. `cmd,tlm,wait_check,etc.`
+- Full API stub injection with type info
+- `load_utility('<plugin/path>')` dynamically resolves imports (if source exists in your workspace)
+
+Ruby:
+
+- Suggestions/Autocompletions for most common api functions ie. `cmd,tlm,wait_check,etc.`
+
+<video src="https://github.com/user-attachments/assets/f6abc068-c454-40ee-b7d5-33b0c708e781" 
+       loop 
+       autoplay 
+       muted 
+       playsinline 
+       width="100%">
+Your browser does not support the video tag.
+</video>
+
+### Configuration completions/suggestions and highlighting
+
+<video src="https://github.com/user-attachments/assets/8fb25873-d465-4e66-86e1-29c93e9dfece" 
+       loop 
+       autoplay 
+       muted 
+       playsinline 
+       width="100%">
+Your browser does not support the video tag.
+</video>
+
+### Embedded Ruby Support (ERB)
+
+Open from command palette with `openc3.showERB` - or click the `eye` icon in the top right
+
+<video src="https://github.com/user-attachments/assets/f915d79a-60a8-4708-b55d-7ac0495b1898" 
+       loop 
+       autoplay 
+       muted 
+       playsinline 
+       width="100%">
+Your browser does not support the video tag.
+</video>
+
+#### Adding missing/custom erb values (typically not required)
+
+NOTE: The `target_name` variable is automatically generated during compilation.
+
+Create a file named `openc3-erb.json` near your configuration files that require erb definitions. A workspace can contain any number of erb configuration files.
+
+```
+plugin/target/cmd_tlm/cmd.txt <-- file with unresolvable erb definitions
+
+These are all valid
+- plugin/target/cmd_tlm/openc3-erb.json <- Scoped to only what is in cmd_tlm directory
+- plugin/target/openc3-erb.json         <- Scoped to everything in the target
+- plugin/openc3-erb.json                <- Scoped to everything in the plugin
+- openc3-erb.json                       <- Scoped to everything
+```
+
+Update the `openc3-erb.json` with `variables` and `patterns`. If either is not required, simply assign it to an empty object like so `"variables": {}`
+
+```json
+{
+  "variables": {
+    "var_name": "value"
+  },
+  "patterns": {
+    "<some-regex/string>": "replace with this"
+  }
+}
+```
+
+The `"variables"` object directly instantiates ruby variables by name, any erb in any configuration file within the scope will be able to reference these variables.
+
+Example:
+
+```json
+// plugin/cmd_tlm/openc3-erb.json
+{
+  "variables": {
+    "my_variable": "COMMAND_MNEMONIC"
+  },
+  "patterns": {}
+}
+```
+
+```ruby
+# plugin/cmd_tlm/cmd.txt
+COMMAND <%= target_name %> <%= my_variable %> ...
+# Becomes
+COMMAND TARGET_NAME COMMAND_MNEMONIC
+```
+
+The `"patterns"` object will simply replace whatever pattern is supplied with any other value. Useful if you have some custom preprocessor on top of your plugin generation workflow.
+
+Example:
+
+```json
+// plugin/openc3-erb.json
+{
+  "variables": {},
+  "patterns": {
+    "%%target_hostname%%": "127.0.0.1"
+  }
+}
+```
+
+```ruby
+# plugin/plugin.txt
+VARIABLE host %%target_hostname%%
+
+INTERFACE MY_INTERFACE openc3/interfaces/udp_interface.py <%= host %> ...
+
+# Becomes
+VARIABLE host '127.0.0.1'
+
+INTERFACE MY_INTERFACE openc3/interfaces/udp_interface.py 127.0.0.1 ...
+```
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+NOTE: This extension will only activate if your workspace contains ALL of the following:
+
+1. Command/Telemetry definition files (cmd.txt + tlm.txt)
+2. Plugin files (plugin.txt)
+3. Target files (target.txt)
+4. Rakefiles (Rakefile)
+
+Certain python scripting features will not work properly without the [pylance extension](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance).
+This extension automatically generates pylance configuration settings in .vscode/settings.json
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
 This extension contributes the following settings:
 
-- `myExtension.enable`: Enable/disable this extension.
-- `myExtension.thing`: Set to `blah` to do something.
+- `openc3.ignoreDirectories`: list of directory names to ignore for context generation
+- `openc3.autoGitignore`: Set to false to prevent .gitignore updates for scripting stubs
+- `openc3.autoEditorHide`: Set to false to prevent editor from hiding generated .pyi stub files
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+There are probably tons, you are welcome to open issues [here](https://github.com/JakeHillHub/openc3-vscode/issues)
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.0.1
 
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-- [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-- Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-- Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-- Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-- [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Initial release, includes minimum set of features to be somewhat useful
