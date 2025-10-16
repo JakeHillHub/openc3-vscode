@@ -448,7 +448,6 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
   ) {
     this.lineContext = new LineContext(-1, language);
     this.outputChannel = outputChannel;
-    this.outputChannel.show(true);
 
     this._language = language;
 
