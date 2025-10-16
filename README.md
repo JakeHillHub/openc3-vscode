@@ -13,7 +13,14 @@ NOTE: This extension will only activate if your workspace contains ALL of the fo
 
 Configuration completions/suggestions and highlighting
 
-<video controls src="https://github.com/JakeHillHub/openc3-vscode/blob/release-beta/images/cmd-completion.mp4" title="images/cmd-completion.mp4">
+<video src="https://github.com/user-attachments/assets/8fb25873-d465-4e66-86e1-29c93e9dfece" 
+       loop 
+       autoplay 
+       muted 
+       playsinline 
+       width="100%">
+Your browser does not support the video tag.
+</video>
 
 ## Requirements
 
