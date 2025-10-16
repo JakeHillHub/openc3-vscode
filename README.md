@@ -1,8 +1,12 @@
 # openc3 vscode - BETA
 
-This repository contains source code for the ongoing development of an openc3 vscode helper extension. This extension aims to assist with developing custom openc3/cosmos plugins and scripts.
+This extension aims to assist in the local development of openc3/cosmos plugins/scripts.
 
 ## Features
+
+### Works with many plugin directories in a single workspace/folder
+
+Extension is not strict about structure/layout. Entire workspace is scanned and contextualized to generate cmd/tlm definitions etc.
 
 ### Scripting completions/suggestions
 
@@ -36,7 +40,7 @@ Your browser does not support the video tag.
 Your browser does not support the video tag.
 </video>
 
-### ERB (embedded ruby) viewer
+### Embedded Ruby Support (ERB)
 
 Open from command palette with `openc3.showERB` - or click the `eye` icon in the top right
 
@@ -48,6 +52,82 @@ Open from command palette with `openc3.showERB` - or click the `eye` icon in the
        width="100%">
 Your browser does not support the video tag.
 </video>
+
+#### Adding missing/custom erb values (typically not required)
+
+NOTE: The `target_name` variable is automatically generated during compilation.
+
+Create a file named `openc3-erb.json` near your configuration files that require erb definitions. A workspace can contain any number of erb configuration files.
+
+```
+plugin/target/cmd_tlm/cmd.txt <-- file with unresolvable erb definitions
+
+These are all valid
+- plugin/target/cmd_tlm/openc3-erb.json <- Scoped to only what is in cmd_tlm directory
+- plugin/target/openc3-erb.json         <- Scoped to everything in the target
+- plugin/openc3-erb.json                <- Scoped to everything in the plugin
+- openc3-erb.json                       <- Scoped to everything
+```
+
+Update the `openc3-erb.json` with `variables` and `patterns`. If either is not required, simply assign it to an empty object like so `"variables": {}`
+
+```json
+{
+  "variables": {
+    "var_name": "value"
+  },
+  "patterns": {
+    "<some-regex/string>": "replace with this"
+  }
+}
+```
+
+The `"variables"` object directly instantiates ruby variables by name, any erb in any configuration file within the scope will be able to reference these variables.
+
+Example:
+
+```json
+// plugin/cmd_tlm/openc3-erb.json
+{
+  "variables": {
+    "my_variable": "COMMAND_MNEMONIC"
+  },
+  "patterns": {}
+}
+```
+
+```ruby
+# plugin/cmd_tlm/cmd.txt
+COMMAND <%= target_name %> <%= my_variable %> ...
+# Becomes
+COMMAND TARGET_NAME COMMAND_MNEMONIC
+```
+
+The `"patterns"` object will simply replace whatever pattern is supplied with any other value. Useful if you have some custom preprocessor on top of your plugin generation workflow.
+
+Example:
+
+```json
+// plugin/openc3-erb.json
+{
+  "variables": {},
+  "patterns": {
+    "%%target_hostname%%": "127.0.0.1"
+  }
+}
+```
+
+```ruby
+# plugin/plugin.txt
+VARIABLE host %%target_hostname%%
+
+INTERFACE MY_INTERFACE openc3/interfaces/udp_interface.py <%= host %> ...
+
+# Becomes
+VARIABLE host '127.0.0.1'
+
+INTERFACE MY_INTERFACE openc3/interfaces/udp_interface.py 127.0.0.1 ...
+```
 
 ## Requirements
 
@@ -63,54 +143,18 @@ This extension automatically generates pylance configuration settings in .vscode
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
 This extension contributes the following settings:
 
-- `myExtension.enable`: Enable/disable this extension.
-- `myExtension.thing`: Set to `blah` to do something.
+- `openc3.ignoreDirectories`: list of directory names to ignore for context generation
+- `openc3.autoGitignore`: Set to false to prevent .gitignore updates for scripting stubs
+- `openc3.autoEditorHide`: Set to false to prevent editor from hiding generated .pyi stub files
 
 ## Known Issues
 
-\*Ruby API stubs are not implemented (yet?)
+There are probably tons, you are welcome to open issues [here](https://github.com/JakeHillHub/openc3-vscode/issues)
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.0.1
 
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-- [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-- Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-- Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-- Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-- [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Initial release, includes minimum set of features to be somewhat useful
