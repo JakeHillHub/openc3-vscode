@@ -12,7 +12,8 @@ NOTE: This extension will only activate if your workspace contains ALL of the fo
 ## Features
 
 Configuration completions/suggestions and highlighting
-<video src="<video controls src="https://github.com/JakeHillHub/openc3-vscode/blob/release-beta/images/cmd-completion.mp4" title="images/cmd-completion.mp4">
+
+<video controls src="https://github.com/JakeHillHub/openc3-vscode/blob/release-beta/images/cmd-completion.mp4" title="images/cmd-completion.mp4">
 
 ## Requirements
 
