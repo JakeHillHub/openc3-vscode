@@ -1,20 +1,20 @@
-# openc3 README
+# openc3 vscode - BETA
 
-This is the README for your extension "openc3". After writing up a brief description, we recommend including the following sections.
+This repository contains source code for the ongoing development of an openc3 vscode helper extension. This extension aims to assist with developing custom openc3/cosmos plugins and scripts.
+
+NOTE: This extension will only activate if your workspace contains ALL of the following:
+
+1. Command/Telemetry definition files (cmd.txt + tlm.txt)
+2. Plugin files (plugin.txt)
+3. Target files (target.txt)
+4. Rakefiles (Rakefile)
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+Configuration completions/suggestions and highlighting
+![command-completion](images/cmd-completion.gif)
 
 ## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
 
 ## Extension Settings
 
