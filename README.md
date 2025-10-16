@@ -4,7 +4,11 @@ This repository contains source code for the ongoing development of an openc3 vs
 
 ## Features
 
-Configuration completions/suggestions and highlighting
+### Scripting completions/suggestions
+
+Supports python and ruby\*
+
+### Configuration completions/suggestions and highlighting
 
 <video src="https://github.com/user-attachments/assets/8fb25873-d465-4e66-86e1-29c93e9dfece" 
        loop 
@@ -15,7 +19,9 @@ Configuration completions/suggestions and highlighting
 Your browser does not support the video tag.
 </video>
 
-ERB (embedded ruby) viewer
+### ERB (embedded ruby) viewer
+
+Open from command palette with `openc3.showERB` - or click the `eye` icon in the top right
 
 <video src="https://github.com/user-attachments/assets/f915d79a-60a8-4708-b55d-7ac0495b1898" 
        loop 
