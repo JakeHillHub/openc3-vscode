@@ -37,24 +37,12 @@
   "contributes": {
     "languages": [
       {
-        "id": "openc3-cmd",
+        "id": "openc3-cmdtlm",
         "aliases": [
-          "OpenC3 Commands"
+          "OpenC3 CmdTlm"
         ],
-        "filenames": [
-          "cmd.txt",
-          "erb-cmd.txt"
-        ],
-        "configuration": "./syntaxes/openc3-language-configuration.json"
-      },
-      {
-        "id": "openc3-tlm",
-        "aliases": [
-          "OpenC3 Telemetry"
-        ],
-        "filenames": [
-          "tlm.txt",
-          "erb-tlm.txt"
+        "filenamePatterns": [
+          "**/cmd_tlm/*.txt"
         ],
         "configuration": "./syntaxes/openc3-language-configuration.json"
       },
@@ -83,14 +71,9 @@
     ],
     "grammars": [
       {
-        "language": "openc3-cmd",
-        "scopeName": "source.openc3-cmd",
-        "path": "./syntaxes/openc3-cmd.tmLanguage.json"
-      },
-      {
-        "language": "openc3-tlm",
-        "scopeName": "source.openc3-tlm",
-        "path": "./syntaxes/openc3-tlm.tmLanguage.json"
+        "language": "openc3-cmdtlm",
+        "scopeName": "source.openc3-cmdtlm",
+        "path": "./syntaxes/openc3-cmdtlm.tmLanguage.json"
       },
       {
         "language": "openc3-target",

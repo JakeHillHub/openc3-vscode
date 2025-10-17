@@ -197,33 +197,63 @@ export class EditorFileManager {
 
   public createOpenC3Watchers(cmdTlmDB: CosmosCmdTlmDB): vscode.Disposable[] {
     /* Watchers */
-    const cosmosWatcher = vscode.workspace.createFileSystemWatcher(
-      '**/{cmd.txt,tlm.txt,plugin.txt,target.txt,openc3-erb.json}'
+    const cosmosCmdTlmWatcher = vscode.workspace.createFileSystemWatcher('**/cmd_tlm/*.txt');
+    const erbConfigWatcher = vscode.workspace.createFileSystemWatcher('**/openc3-erb.json');
+    const cosmosConfigWatcher = vscode.workspace.createFileSystemWatcher(
+      '**/{plugin.txt,target.txt'
     );
-    cosmosWatcher.onDidChange(
+
+    const displayErbIfOpen = async (uri: vscode.Uri) => {
+      const fileName = path.basename(uri.fsPath);
+      if (fileName !== 'openc3-erb.json') {
+        await this.showParsedERBIfOpen(uri.fsPath);
+      }
+    };
+
+    cosmosCmdTlmWatcher.onDidChange(
       debounce(async (uri: vscode.Uri) => {
         if (this.isPathIgnored(uri.fsPath, this.ignoredDirs)) {
           return;
         }
 
-        const fileName = path.basename(uri.fsPath);
-        if (fileName !== 'openc3-erb.json') {
-          await this.showParsedERBIfOpen(uri.fsPath); /* Update ERB View Pane */
+        await displayErbIfOpen(uri);
+
+        this.outputChannel.appendLine(`Recompiling ${uri.fsPath}`);
+
+        /* Always compile as both cmd and tlm in case both definitions exist */
+        cmdTlmDB.compileCmdFile(uri.fsPath);
+        cmdTlmDB.compileTlmFile(uri.fsPath);
+      }, debounceInterval)
+    );
+
+    erbConfigWatcher.onDidChange(
+      debounce(async (uri: vscode.Uri) => {
+        if (this.isPathIgnored(uri.fsPath, this.ignoredDirs)) {
+          return;
         }
 
-        switch (fileName) {
-          case 'cmd.txt':
-            this.outputChannel.appendLine(`Recompiling ${uri.fsPath}`);
-            cmdTlmDB.compileCmdFile(uri.fsPath);
-            break;
-          case 'tlm.txt':
-            this.outputChannel.appendLine(`Recompiling ${uri.fsPath}`);
-            cmdTlmDB.compileTlmFile(uri.fsPath);
-            break;
-          case 'openc3-erb.json':
-            this.outputChannel.appendLine(`Recompiling workspace`);
-            await cmdTlmDB.compileWorkspace(this.ignoredPattern);
-            break;
+        await displayErbIfOpen(uri);
+
+        const fileName = path.basename(uri.fsPath);
+        if (fileName === 'openc3-erb.json') {
+          this.outputChannel.appendLine(`Recompiling workspace`);
+          await cmdTlmDB.compileWorkspace(this.ignoredPattern);
+        }
+      }, debounceInterval)
+    );
+
+    cosmosConfigWatcher.onDidChange(
+      debounce(async (uri: vscode.Uri) => {
+        if (this.isPathIgnored(uri.fsPath, this.ignoredDirs)) {
+          return;
+        }
+
+        await displayErbIfOpen(uri);
+
+        const fileName = path.basename(uri.fsPath);
+        if (fileName === 'plugin.txt') {
+          this.outputChannel.appendLine(`Recompiling workspace`);
+          await cmdTlmDB.compileWorkspace(this.ignoredPattern);
         }
       }, debounceInterval)
     );
@@ -233,7 +263,7 @@ export class EditorFileManager {
       this.parsedContentProvider
     );
 
-    return [cosmosWatcher, erbContentProvider];
+    return [cosmosCmdTlmWatcher, erbContentProvider, erbConfigWatcher, cosmosConfigWatcher];
   }
 
   public createVscodeSettingsWatcher(

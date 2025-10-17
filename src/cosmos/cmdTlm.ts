@@ -1011,9 +1011,9 @@ export class CosmosCmdTlmDB {
     }
   }
 
-  private async compileCmds(excludePattern: string) {
+  private async compileCmdTlm(excludePattern: string) {
     // Search for all files named 'cmd.txt' in the workspace.
-    const fileUris = await vscode.workspace.findFiles('**/cmd.txt', excludePattern);
+    const fileUris = await vscode.workspace.findFiles('**/cmd_tlm/*.txt', excludePattern);
 
     if (fileUris.length === 0) {
       this.outputChannel.appendLine('No .cmd.txt files found in the workspace.');
@@ -1025,25 +1025,6 @@ export class CosmosCmdTlmDB {
       try {
         this.outputChannel.appendLine(`Compiling: ${fileUri.fsPath}`);
         await this.compileCmdFile(fileUri.fsPath);
-      } catch (error) {
-        this.outputChannel.appendLine(`Error compiling ${fileUri.fsPath}: ${error}`);
-      }
-    }
-  }
-
-  private async compileTlm(excludePattern: string) {
-    // Search for all files named 'cmd.txt' in the workspace.
-    const fileUris = await vscode.workspace.findFiles('**/tlm.txt', excludePattern);
-
-    if (fileUris.length === 0) {
-      this.outputChannel.appendLine('No .tlm.txt files found in the workspace.');
-      return;
-    }
-
-    this.outputChannel.appendLine(`Found ${fileUris.length} telemetry files.`);
-    for (const fileUri of fileUris) {
-      try {
-        this.outputChannel.appendLine(`Compiling: ${fileUri.fsPath}`);
         await this.compileTlmFile(fileUri.fsPath);
       } catch (error) {
         this.outputChannel.appendLine(`Error compiling ${fileUri.fsPath}: ${error}`);
@@ -1053,8 +1034,7 @@ export class CosmosCmdTlmDB {
 
   public async compileWorkspace(excludePattern: string) {
     this.outputChannel.appendLine('Scanning workspace for cmd/tlm definitions');
-    await this.compileCmds(excludePattern);
-    await this.compileTlm(excludePattern);
+    await this.compileCmdTlm(excludePattern);
     this.outputChannel.appendLine('Compiling workspace complete');
   }
 }

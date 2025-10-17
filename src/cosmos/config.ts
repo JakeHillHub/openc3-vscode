@@ -173,8 +173,7 @@ export class CosmosProjectSearch {
   ): Array<string> {
     const targetNames = new Array<string>();
 
-    const basename = path.basename(filePath);
-    if (basename !== 'cmd.txt' && basename !== 'tlm.txt') {
+    if (!filePath.includes('cmd_tlm')) {
       targetNames.push(path.basename(pluginDir));
       return targetNames;
     }
