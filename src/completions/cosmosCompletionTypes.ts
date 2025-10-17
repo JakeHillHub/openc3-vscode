@@ -104,11 +104,14 @@ export function magicalTypeConstants(
   const opts = arg.options.filter((option) => option.includes(bitSizeStr) && option.includes(t));
   if (opts.length === 0) {
     return undefined;
+  } else if (opts.length === 1) {
+    return `\${${index}:${opts[0]}}`;
+  } else {
+    return `\${${index}|${opts.sort().reverse().join(',')}|}`;
   }
-  return `\${${index}|${opts.sort().reverse().join(',')}|}`;
 }
 
 export function idTypeConstants(..._: unknown[]): string | undefined {
   /* Generate all id type constants with the same tabstop (1) so they update simultaneously */
-  return `\${${1}| |}`;
+  return `\${1: }`;
 }
