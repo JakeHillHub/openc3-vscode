@@ -447,7 +447,11 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
   }
 
   private generateTabstopArgs(values: string[], quoteValues?: boolean): string {
-    const joinedValues = values.join(',');
+    let joinedValues = values.join(',');
+    if (joinedValues === '') {
+      joinedValues = ' ';
+    }
+
     const coreTabstop = `\${1|${joinedValues}|}`;
 
     if (quoteValues) {
@@ -459,7 +463,11 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
   }
 
   private generateTabstopArgsPositional(values: string[], quoteValues?: boolean): string {
-    const joinedValues = values.join(',');
+    let joinedValues = values.join(',');
+    if (joinedValues === '') {
+      joinedValues = ' ';
+    }
+
     const coreTabstop = `\${1|${joinedValues}|}`;
 
     if (quoteValues) {
