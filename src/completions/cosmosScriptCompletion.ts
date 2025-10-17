@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { CmdArgument, CmdParamType, CosmosCmdTlmDB, DataType, TlmField } from '../cosmos/cmdTlm';
-import { Script } from 'vm';
 
 enum GroupIndexes {
   REF_GROUP = 0 /* Special cosmos API sources */,
@@ -37,7 +36,6 @@ export enum ArgSource {
 export enum GroupType {
   CMD_REF,
   TLM_REF,
-  API_FN_ARGS,
 }
 
 export interface ScriptCompletionArg {
@@ -53,9 +51,8 @@ export interface ScriptCompletionArgGroup {
 }
 
 export interface ScriptCompletionDefinition {
-  triggers: string[];
   match: RegExp;
-  groups: ScriptCompletionArgGroup[];
+  group: ScriptCompletionArgGroup;
 }
 
 class NoCompletion extends Error {
@@ -98,10 +95,6 @@ class LineContext {
   public text: string = '';
 
   public inlineRefQuoteInner: string = '';
-  public inlineRefQuoteOuter: string = '';
-
-  public method: CMethods | undefined = undefined;
-  public methodLocked: boolean = false;
 
   public groupIndex: number = GroupIndexes.REF_GROUP; /* Always start at REF_GROUP */
 
@@ -179,11 +172,9 @@ class LineContext {
     let inlineStrMatch = null;
     if (raw.startsWith('"')) {
       this.inlineRefQuoteInner = "'";
-      this.inlineRefQuoteOuter = '"';
       inlineStrMatch = raw.trim().match(/^"(.*?)"/); /* Capture between doubles */
     } else if (raw.startsWith("'")) {
       this.inlineRefQuoteInner = '"';
-      this.inlineRefQuoteOuter = "'";
       inlineStrMatch = raw.trim().match(/^'(.*?)'/); /* Capture between singles */
     } else {
       return undefined; /* Unknown quote type */
@@ -271,6 +262,7 @@ class LineContext {
     if (result === null) {
       return false;
     }
+
     return true;
   }
 
@@ -327,22 +319,15 @@ class LineContext {
   }
 
   public deriveCmdRefMethod(): CMethods | undefined {
-    if (this.methodLocked) {
-      return this.method;
-    }
-
     if (this.detectPositional()) {
       const positionalArgs = this.getRefArgsPositional();
       if (positionalArgs !== undefined && positionalArgs.length !== 0) {
-        this.method = CMethods.COMMAND_POSITIONAL;
         return CMethods.COMMAND_POSITIONAL;
       }
     }
 
     const inlineArgs = this.getRefArgsInline(); /* No filter leaves empty strings in */
     if (inlineArgs !== undefined && inlineArgs.length >= 1) {
-      /* Starts like cmd("STRING<space>...") - 99% inline ref */
-      this.method = CMethods.COMMAND_INLINE;
       return CMethods.COMMAND_INLINE;
     }
 
@@ -350,81 +335,16 @@ class LineContext {
   }
 
   public deriveTlmRefMethod(): CMethods | undefined {
-    if (this.methodLocked) {
-      return this.method;
-    }
-
     if (this.detectPositional()) {
       const positionalArgs = this.getRefArgsPositional();
       if (positionalArgs !== undefined && positionalArgs.length !== 0) {
-        this.method = CMethods.TELEMETRY_POSITIONAL;
         return CMethods.TELEMETRY_POSITIONAL;
       }
     }
 
     const inlineArgs = this.getRefArgsInline();
     if (inlineArgs !== undefined && inlineArgs.length >= 1) {
-      /* Starts like tlm("STRING<space>...") - 99% inline ref */
-      this.method = CMethods.TELEMETRY_INLINE;
       return CMethods.TELEMETRY_INLINE;
-    }
-  }
-
-  private detectGroupInline() {
-    const raw = this.getArgsRaw();
-    if (raw === undefined) {
-      return;
-    }
-
-    /* Match cmd("...", ) <- for inline syntax this is now outside the ref group (group 0) */
-    const pattern = new RegExp(`${this.inlineRefQuoteOuter},\\s+$`);
-    const result = raw.match(pattern);
-    if (result) {
-      this.groupIndex = GroupIndexes.FN_GROUP;
-    } else {
-      this.groupIndex = GroupIndexes.REF_GROUP;
-    }
-  }
-
-  private detectGroupPositional() {
-    const raw = this.getArgsRaw();
-    if (raw === undefined) {
-      return;
-    }
-
-    if (this.activeDefinition === undefined || this.activeDefinition.groups.length === 1) {
-      return; /* No alternate group */
-    }
-
-    const preParsed = this.parsePositionalArgs(raw);
-    const refGroupLength = this.activeDefinition.groups[GroupIndexes.REF_GROUP].args.length;
-
-    if (preParsed.length > refGroupLength) {
-      this.groupIndex = GroupIndexes.FN_GROUP;
-    } else {
-      this.groupIndex = GroupIndexes.REF_GROUP;
-    }
-  }
-
-  public detectGroup() {
-    if (!this.methodLocked) {
-      return;
-    }
-    if (this.activeDefinition?.groups.length === 1) {
-      return; /* No alternate group */
-    }
-
-    switch (this.method) {
-      case CMethods.COMMAND_INLINE:
-      case CMethods.TELEMETRY_INLINE:
-        this.detectGroupInline();
-        break;
-      case CMethods.COMMAND_POSITIONAL:
-      case CMethods.TELEMETRY_POSITIONAL:
-        this.detectGroupPositional();
-        break;
-      default:
-        break;
     }
   }
 }
@@ -432,6 +352,9 @@ class LineContext {
 export class CosmosScriptCompletionProvider implements vscode.CompletionItemProvider {
   private _subscriptions: vscode.Disposable[] = [];
   private _language: Language;
+
+  private document: vscode.TextDocument | undefined;
+  private position: vscode.Position | undefined;
 
   private lineContext: LineContext;
 
@@ -455,6 +378,7 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     this.db = cmdTlmDB;
 
     this.createCursorListener();
+    this.createDeleteListener();
   }
 
   get language(): Language {
@@ -462,17 +386,8 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
   }
 
   get triggerChars(): string[] {
-    const triggerSet = new Set<string>();
-    for (const definition of this.defs) {
-      for (const trigger of definition.triggers) {
-        triggerSet.add(trigger);
-      }
-    }
-
-    triggerSet.add(' '); /* Always trigger on space char */
-    triggerSet.add('('); /* Always trigger on left paren char */
-
-    return [...triggerSet];
+    /* Trigger on space, open paren, tab, comma, backspace */
+    return [' ', '(', '\t', ',', '\b'];
   }
 
   get additionalSubscriptions(): vscode.Disposable[] {
@@ -496,6 +411,28 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     );
   }
 
+  private createDeleteListener() {
+    this._subscriptions.push(
+      vscode.workspace.onDidChangeTextDocument((event) => {
+        for (const change of event.contentChanges) {
+          if (change.rangeLength > 0 && change.text === '') {
+            const currentPosition = change.range.start;
+            const currentLine = currentPosition.line;
+            const derivedDefinition = this.searchDefinition(this.lineContext.text);
+            if (
+              this.lineContext.hasDefinition &&
+              this.lineContext.activeDefinition !== derivedDefinition
+            ) {
+              this.lineContext = new LineContext(currentLine, this.language);
+              this.outputChannel.appendLine('reset line context buffer');
+              this.outputChannel.show(true);
+            }
+          }
+        }
+      })
+    );
+  }
+
   private createInlineStrCompletion(label: string, text: string): vscode.CompletionItem {
     const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Field);
     item.insertText = text;
@@ -509,31 +446,19 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     return item;
   }
 
-  private generateTabstopArgs(values: string[], quoteValues?: boolean): string {
-    const joinedValues = values.join(',');
-    const coreTabstop = `\${1|${joinedValues}|}`;
-    const finalExit = '$0';
-
-    if (quoteValues) {
-      const quote = this.lineContext.inlineRefQuoteInner;
-      return `${quote}${coreTabstop}${quote}${finalExit}`;
+  private generateTabstopArgs(values: string[], quoteValues: boolean, quoteChar: string): string {
+    let joinedValues = values.join(',');
+    if (joinedValues === '') {
+      joinedValues = ' ';
     }
 
-    return `${coreTabstop}${finalExit}`;
-  }
-
-  private generateTabstopArgsPositional(values: string[], quoteValues?: boolean): string {
-    const joinedValues = values.join(',');
     const coreTabstop = `\${1|${joinedValues}|}`;
-    const finalExit = '$0';
 
     if (quoteValues) {
-      /* TODO: This could be configurable by the user as "preferred quote style" */
-      const quote = '"';
-      return `${quote}${coreTabstop}${quote}${finalExit}`;
+      return `${quoteChar}${coreTabstop}${quoteChar}$0`;
     }
 
-    return `${coreTabstop}${finalExit}`;
+    return `${coreTabstop}$0`;
   }
 
   private createInlineCmdParamCompletion(
@@ -545,14 +470,15 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Snippet);
     let tabStopper = this.generateTabstopArgs(
       [value.defaultValue],
-      value.dataType === DataType.STRING
+      value.dataType === DataType.STRING,
+      this.lineContext.inlineRefQuoteInner
     );
     if (value.enumValues.size !== 0) {
       const enumKeys: string[] = [];
       for (const [ename, _] of value.enumValues.entries()) {
         enumKeys.push(ename);
       }
-      tabStopper = this.generateTabstopArgs(enumKeys, true);
+      tabStopper = this.generateTabstopArgs(enumKeys, true, this.lineContext.inlineRefQuoteInner);
     }
 
     let snippetText = `${key} ${tabStopper}`;
@@ -573,14 +499,15 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Snippet);
     let tabStopper = this.generateTabstopArgs(
       [this.db.deriveTlmFieldDefault(value)],
-      value.dataType === DataType.STRING
+      value.dataType === DataType.STRING,
+      '"'
     );
     if (value.enumValues.size !== 0) {
       const enumKeys: string[] = [];
       for (const [ename, _] of value.enumValues.entries()) {
         enumKeys.push(ename);
       }
-      tabStopper = this.generateTabstopArgs(enumKeys, true);
+      tabStopper = this.generateTabstopArgs(enumKeys, true, '"');
     }
 
     let snippetText = `${key} ${tabStopper}`;
@@ -602,9 +529,10 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     firstParam: boolean
   ): vscode.CompletionItem {
     const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Snippet);
-    let tabStopper = this.generateTabstopArgsPositional(
+    let tabStopper = this.generateTabstopArgs(
       [value.defaultValue],
-      value.dataType === DataType.STRING
+      value.dataType === DataType.STRING,
+      '"'
     );
 
     if (value.enumValues.size !== 0) {
@@ -612,7 +540,7 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
       for (const [ename, _] of value.enumValues.entries()) {
         enumKeys.push(ename);
       }
-      tabStopper = this.generateTabstopArgsPositional(enumKeys, true);
+      tabStopper = this.generateTabstopArgs(enumKeys, true, '"');
     }
 
     let snippetText = this.lineContext.keyValMapStr(`"${key}"`, tabStopper);
@@ -857,12 +785,6 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     const existingArgs = this.lineContext.retrieveRefArgs(CMethods.COMMAND_INLINE);
     const argIndex = existingArgs?.length || 0; /* Default to zero if nothing could parse */
 
-    if (argIndex >= 1) {
-      /* cmd("ARG1 <here>...", ...)
-      /* We can be confident that this completion method is definitely inline now */
-      this.lineContext.methodLocked = true;
-    }
-
     let refArg = group.args[argIndex];
     if (refArg === undefined) {
       const lastArg = group.args.at(-1);
@@ -904,12 +826,6 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
   private tlmCompletionInline(group: ScriptCompletionArgGroup, annotate: boolean) {
     const existingArgs = this.lineContext.retrieveRefArgs(CMethods.TELEMETRY_INLINE);
     const argIndex = existingArgs?.length || 0; /* Default to zero if nothing could parse */
-
-    if (argIndex >= 1) {
-      /* cmd("ARG1 <here>...", ...)
-      /* We can be confident that this completion method is definitely inline now */
-      this.lineContext.methodLocked = true;
-    }
 
     let refArg = group.args[argIndex];
     if (refArg === undefined) {
@@ -953,12 +869,6 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     const existingArgs = this.lineContext.retrieveRefArgs(CMethods.COMMAND_POSITIONAL);
     const argIndex = existingArgs?.length || 0; /* Default to zero if nothing could parse */
 
-    if (argIndex >= 1) {
-      /* cmd("ARG1", <here>) */
-      /* We can be confident that this completion method is definitely positional now */
-      this.lineContext.methodLocked = true;
-    }
-
     let refArg = group.args[argIndex];
     if (refArg === undefined) {
       const lastArg = group.args.at(-1);
@@ -1000,12 +910,6 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
   private tlmCompletionPositional(group: ScriptCompletionArgGroup, annotate: boolean) {
     const existingArgs = this.lineContext.retrieveRefArgs(CMethods.TELEMETRY_POSITIONAL);
     const argIndex = existingArgs?.length || 0; /* Default to zero if nothing could parse */
-
-    if (argIndex >= 1) {
-      /* cmd("ARG1", <here>) */
-      /* We can be confident that this completion method is definitely positional now */
-      this.lineContext.methodLocked = true;
-    }
 
     let refArg = group.args[argIndex];
     if (refArg === undefined) {
@@ -1087,17 +991,8 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     return completionItems;
   }
 
-  private apiFnCompletions(
-    group: ScriptCompletionArgGroup
-  ): vscode.ProviderResult<vscode.CompletionItem[]> {
-    const completionItems: vscode.CompletionItem[] = [];
-    return completionItems;
-  }
-
   private createNextCompletion(): vscode.ProviderResult<vscode.CompletionItem[]> {
-    this.lineContext.detectGroup();
-
-    const group = this.lineContext.activeDefinition?.groups[this.lineContext.groupIndex];
+    const group = this.lineContext.activeDefinition?.group;
     if (!group) {
       return undefined;
     }
@@ -1107,8 +1002,6 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
         return this.cmdTlmCompletions(GroupType.CMD_REF, group);
       case GroupType.TLM_REF:
         return this.cmdTlmCompletions(GroupType.TLM_REF, group);
-      case GroupType.API_FN_ARGS:
-        return this.apiFnCompletions(group);
       default:
         return undefined;
     }
