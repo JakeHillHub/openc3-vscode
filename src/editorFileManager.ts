@@ -27,18 +27,9 @@ export async function extensionShouldLoad(): Promise<boolean> {
   }
 
   const plugins = await vscode.workspace.findFiles('**/plugin.txt');
-  const cmdDefs = await vscode.workspace.findFiles('**/cmd.txt');
-  const tlmDefs = await vscode.workspace.findFiles('**/tlm.txt');
-  const targets = await vscode.workspace.findFiles('**/target.txt');
   const rakefiles = await vscode.workspace.findFiles('**/Rakefile');
 
-  if (
-    plugins.length !== 0 &&
-    cmdDefs.length !== 0 &&
-    tlmDefs.length !== 0 &&
-    targets.length !== 0 &&
-    rakefiles.length !== 0
-  ) {
+  if (plugins.length !== 0 && rakefiles.length !== 0) {
     return true;
   }
 

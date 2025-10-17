@@ -133,12 +133,10 @@ INTERFACE MY_INTERFACE openc3/interfaces/udp_interface.py 127.0.0.1 ...
 
 ## Requirements
 
-NOTE: This extension will only activate if your workspace contains ALL of the following:
+NOTE: This extension will only activate if your workspace contains both:
 
-1. Command/Telemetry definition files (cmd.txt + tlm.txt)
-2. Plugin files (plugin.txt)
-3. Target files (target.txt)
-4. Rakefiles (Rakefile)
+1. Plugin files (plugin.txt)
+2. Rakefiles (Rakefile)
 
 Certain python scripting features will not work properly without the [pylance extension](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance).
 This extension automatically generates pylance configuration settings in .vscode/settings.json
