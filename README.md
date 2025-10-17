@@ -160,3 +160,7 @@ There are probably tons, you are welcome to open issues [here](https://github.co
 ### 0.0.1
 
 Initial release, includes minimum set of features to be somewhat useful
+
+### 0.1.2
+
+Resolve quirky behavior in scripting autocompletions
