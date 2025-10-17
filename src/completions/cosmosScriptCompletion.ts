@@ -452,7 +452,12 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
       joinedValues = ' ';
     }
 
-    const coreTabstop = `\${1|${joinedValues}|}`;
+    let coreTabstop;
+    if (values.length > 1) {
+      coreTabstop = `\${1|${joinedValues}|}`;
+    } else {
+      coreTabstop = `\${1:${joinedValues}}`;
+    }
 
     if (quoteValues) {
       return `${quoteChar}${coreTabstop}${quoteChar}$0`;
