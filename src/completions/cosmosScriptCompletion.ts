@@ -446,7 +446,7 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     return item;
   }
 
-  private generateTabstopArgs(values: string[], quoteValues?: boolean): string {
+  private generateTabstopArgs(values: string[], quoteValues: boolean, quoteChar: string): string {
     let joinedValues = values.join(',');
     if (joinedValues === '') {
       joinedValues = ' ';
@@ -455,24 +455,7 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     const coreTabstop = `\${1|${joinedValues}|}`;
 
     if (quoteValues) {
-      const quote = this.lineContext.inlineRefQuoteInner;
-      return `${quote}${coreTabstop}${quote}$0`;
-    }
-
-    return `${coreTabstop}$0`;
-  }
-
-  private generateTabstopArgsPositional(values: string[], quoteValues?: boolean): string {
-    let joinedValues = values.join(',');
-    if (joinedValues === '') {
-      joinedValues = ' ';
-    }
-
-    const coreTabstop = `\${1|${joinedValues}|}`;
-
-    if (quoteValues) {
-      const quote = '"';
-      return `${quote}${coreTabstop}${quote}$0`;
+      return `${quoteChar}${coreTabstop}${quoteChar}$0`;
     }
 
     return `${coreTabstop}$0`;
@@ -487,14 +470,15 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Snippet);
     let tabStopper = this.generateTabstopArgs(
       [value.defaultValue],
-      value.dataType === DataType.STRING
+      value.dataType === DataType.STRING,
+      this.lineContext.inlineRefQuoteInner
     );
     if (value.enumValues.size !== 0) {
       const enumKeys: string[] = [];
       for (const [ename, _] of value.enumValues.entries()) {
         enumKeys.push(ename);
       }
-      tabStopper = this.generateTabstopArgs(enumKeys, true);
+      tabStopper = this.generateTabstopArgs(enumKeys, true, this.lineContext.inlineRefQuoteInner);
     }
 
     let snippetText = `${key} ${tabStopper}`;
@@ -515,14 +499,15 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Snippet);
     let tabStopper = this.generateTabstopArgs(
       [this.db.deriveTlmFieldDefault(value)],
-      value.dataType === DataType.STRING
+      value.dataType === DataType.STRING,
+      '"'
     );
     if (value.enumValues.size !== 0) {
       const enumKeys: string[] = [];
       for (const [ename, _] of value.enumValues.entries()) {
         enumKeys.push(ename);
       }
-      tabStopper = this.generateTabstopArgs(enumKeys, true);
+      tabStopper = this.generateTabstopArgs(enumKeys, true, '"');
     }
 
     let snippetText = `${key} ${tabStopper}`;
@@ -544,9 +529,10 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     firstParam: boolean
   ): vscode.CompletionItem {
     const item = new vscode.CompletionItem(label, vscode.CompletionItemKind.Snippet);
-    let tabStopper = this.generateTabstopArgsPositional(
+    let tabStopper = this.generateTabstopArgs(
       [value.defaultValue],
-      value.dataType === DataType.STRING
+      value.dataType === DataType.STRING,
+      '"'
     );
 
     if (value.enumValues.size !== 0) {
@@ -554,7 +540,7 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
       for (const [ename, _] of value.enumValues.entries()) {
         enumKeys.push(ename);
       }
-      tabStopper = this.generateTabstopArgsPositional(enumKeys, true);
+      tabStopper = this.generateTabstopArgs(enumKeys, true, '"');
     }
 
     let snippetText = this.lineContext.keyValMapStr(`"${key}"`, tabStopper);
