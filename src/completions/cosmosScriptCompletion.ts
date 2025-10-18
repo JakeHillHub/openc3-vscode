@@ -505,14 +505,14 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     let tabStopper = this.generateTabstopArgs(
       [this.db.deriveTlmFieldDefault(value)],
       value.dataType === DataType.STRING,
-      '"'
+      this.lineContext.inlineRefQuoteInner
     );
     if (value.enumValues.size !== 0) {
       const enumKeys: string[] = [];
       for (const [ename, _] of value.enumValues.entries()) {
         enumKeys.push(ename);
       }
-      tabStopper = this.generateTabstopArgs(enumKeys, true, '"');
+      tabStopper = this.generateTabstopArgs(enumKeys, true, this.lineContext.inlineRefQuoteInner);
     }
 
     let snippetText = `${key} ${tabStopper}`;
