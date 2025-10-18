@@ -1,0 +1,118 @@
+# sig/openc3/script.rbs
+
+module OpenC3
+  module Script
+    # NOTE: tlm() and related methods would typically be defined in a separate
+    # RBS file that defines the methods imported from tlm_api.rb.
+
+    # --- Retrieving User Input ---
+
+    # Overloads for ask
+    # def ask: (String question) -> untyped
+    # def ask: (String question, bool blank_or_default) -> untyped
+    # def ask: (String question, untyped blank_or_default) -> untyped
+    # def ask: (String question, bool blank_or_default, bool password) -> untyped
+    def ask: (*untyped args) -> untyped
+
+    # Overloads for ask_string
+    # def ask_string: (String question) -> String
+    # def ask_string: (String question, bool blank_or_default) -> String
+    # def ask_string: (String question, String blank_or_default) -> String
+    # def ask_string: (String question, bool blank_or_default, bool password) -> String
+    def ask_string: (*untyped args) -> String
+
+    def message_box: (String message, *String button_texts) -> String
+
+    def vertical_message_box: (String message, *String button_texts) -> String
+
+    def combo_box: (String message, *String selection_texts) -> String
+
+    # --- Providing Information to the User ---
+
+    def prompt: (String message) -> void
+
+    # Overloads for get_tlm_buffer
+    # def get_tlm_buffer: (String telemetry_packet) -> Hash[String, untyped]
+    # def get_tlm_buffer: (String target_name, String packet_name) -> Hash[String, untyped]
+    def get_tlm_buffer: (*String args) -> Hash[String, untyped]
+
+    # Overloads for get_tlm_packet
+    # def get_tlm_packet: (String telemetry_packet, type: String) -> Array[[String, untyped, String]]
+    # def get_tlm_packet: (String target_name, String packet_name, type: String) -> Array[[String, untyped, String]]
+    def get_tlm_packet: (*String args, type: String) -> Array[[String, untyped, String]]
+
+    def get_tlm_available: (Array[String] items) -> Array[String]
+
+    def get_tlm_values: (
+      Array[String] items
+    ) -> [Array[untyped], Array[String], Array[untyped], Array[String]] # (values, limits_states, raw_values, times)
+
+    def get_all_tlm: (String target_name) -> Array[Hash[String, untyped]]
+
+    def get_all_tlm_names: (String target_name) -> Array[String]
+
+    def get_all_tlm_item_names: (String target_name) -> Array[String]
+
+    # Overloads for get_tlm
+    # def get_tlm: (String telemetry_packet) -> Hash[String, untyped]
+    # def get_tlm: (String target_name, String packet_name) -> Hash[String, untyped]
+    def get_tlm: (*String args) -> Hash[String, untyped]
+
+    # Overloads for get_item
+    # def get_item: (String telemetry_item) -> Hash[String, untyped]
+    # def get_item: (String target_name, String packet_name, String item_name) -> Hash[String, untyped]
+    def get_item: (*String args) -> Hash[String, untyped]
+
+    # Overloads for get_tlm_cnt
+    # def get_tlm_cnt: (String telemetry_packet) -> Integer
+    # def get_tlm_cnt: (String target_name, String packet_name) -> Integer
+    def get_tlm_cnt: (*String args) -> Integer
+
+    def get_overrides: () -> Array[Hash[String, untyped]]
+
+    # --- Interfaces ---
+
+    def get_interface: (String interface_name) -> Hash[String, untyped]
+
+    def get_interface_names: () -> Array[String]
+
+    # Overloads for connect_interface
+    # def connect_interface: (String interface_name) -> void
+    # def connect_interface: (String interface_name, *untyped args) -> void
+    def connect_interface: (*untyped args, **untyped kwargs) -> void
+
+    def disconnect_interface: (String interface_name) -> void
+
+    def start_raw_logging_interface: (?String interface_name) -> void
+
+    def stop_raw_logging_interface: (?String interface_name) -> void
+
+    def get_all_interface_info: () -> Array[[String, String, Integer, Integer, Integer, Integer, Integer, Integer, Integer]]
+
+    def map_target_to_interface: (
+      String target_name,
+      String interface_name,
+      ?cmd_only: bool,
+      ?tlm_only: bool,
+      ?unmap_old: bool
+    ) -> void
+
+    def interface_cmd: (String interface_name, String command_name, ?String command_parameters) -> void
+
+    def interface_protocol_cmd: (
+      String interface_name,
+      String command_name,
+      ?String command_parameters,
+      ?read_write: String,
+      ?index: Integer
+    ) -> void
+
+    # --- Offline Access ---
+
+    def initialize_offline_access: () -> void
+
+    def offline_access_needed: () -> bool
+
+    def set_offline_access: (String offline_access_token) -> void
+  end
+end

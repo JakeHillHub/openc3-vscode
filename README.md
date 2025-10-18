@@ -141,6 +141,8 @@ NOTE: This extension will only activate if your workspace contains both:
 Certain python scripting features will not work properly without the [pylance extension](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance).
 This extension automatically generates pylance configuration settings in .vscode/settings.json
 
+For ruby you will need some extension that supports .rbs type signatures (Extension has only been tested with soutaro.steep-vscode + shopify.ruby-lsp)
+
 ## Extension Settings
 
 This extension contributes the following settings:
