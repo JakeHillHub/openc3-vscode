@@ -8,8 +8,7 @@ import { UpdateSettingsFlag } from './utility';
 
 import { CosmosConfigurationCompletion } from './completions/cosmosConfigurationCompletion';
 
-import { createCmdCompletions } from './completions/cosmosCmdCompletion';
-import { createTlmCompletions } from './completions/cosmosTlmCompletion';
+import { createCmdTlmCompletions } from './completions/cosmosCmdTlmCompletion';
 import { createTargetCompletions } from './completions/cosmosTargetCompletion';
 import { createPluginCompletions } from './completions/cosmosPluginCompletion';
 
@@ -35,12 +34,11 @@ function createCompletionProvider(
 }
 
 function createCosmosCompletionProviders(outputChannel: vscode.OutputChannel): vscode.Disposable[] {
-  const cmdTxt = createCompletionProvider(outputChannel, 'openc3-cmd', createCmdCompletions);
-  const tlmTxt = createCompletionProvider(outputChannel, 'openc3-tlm', createTlmCompletions);
-  const targTxt = createCompletionProvider(outputChannel, 'openc3-target', createTargetCompletions);
-  const plugTxt = createCompletionProvider(outputChannel, 'openc3-plugin', createPluginCompletions);
+  const cmdtlm = createCompletionProvider(outputChannel, 'openc3-cmdtlm', createCmdTlmCompletions);
+  const targets = createCompletionProvider(outputChannel, 'openc3-target', createTargetCompletions);
+  const plugins = createCompletionProvider(outputChannel, 'openc3-plugin', createPluginCompletions);
 
-  return [cmdTxt, tlmTxt, targTxt, plugTxt];
+  return [cmdtlm, targets, plugins];
 }
 
 export async function activate(context: vscode.ExtensionContext) {
