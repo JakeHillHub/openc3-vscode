@@ -34,6 +34,7 @@ const erbTemplatesDst = path.resolve('./dist/templates');
 const erbRubyDst = path.resolve('./dist/ruby');
 
 const pyStubsSource = path.resolve('./syntaxes/pystubs');
+const rbStubsSource = path.resolve('./syntaxes/rbstubs');
 
 /**
  * @type {import('esbuild').Plugin}
@@ -71,6 +72,7 @@ const esbuildERBPatcherPlugin = {
         fse.copy(erbTemplatesSource, erbTemplatesDst);
         fse.copy(erbRubySource, erbRubyDst);
         fse.copy(pyStubsSource, './dist/pystubs');
+        fse.copy(rbStubsSource, './dist/rbstubs');
       }
     });
   },

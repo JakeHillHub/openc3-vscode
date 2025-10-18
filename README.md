@@ -150,6 +150,7 @@ This extension contributes the following settings:
 - `openc3.ignoreDirectories`: list of directory names to ignore for context generation
 - `openc3.autoGitignore`: Set to false to prevent .gitignore updates for scripting stubs
 - `openc3.autoEditorHide`: Set to false to prevent editor from hiding generated .pyi stub files
+- `openc3.preferredStyle`: Set to "inline" for cmd("TARG MNEMONIC ...") or "positional" for cmd("TARG", "MNEMONIC"). Both styles are still possible at all times, this manages where your cursor gets placed during completions
 
 ## Known Issues
 
