@@ -3,17 +3,15 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { CosmosProjectSearch } from './config';
-import { triggerEditorRefresh, UpdateSettingsFlag } from '../utility';
+import { triggerEditorRefresh } from '../utility';
 import { PyBuiltinStubManager } from './pythonBuiltinStubManager';
 
 export class PythonStubManager {
   private outputChannel: vscode.OutputChannel;
-  private updateSettingsFlag: UpdateSettingsFlag;
   private builtinStubManager: PyBuiltinStubManager;
 
-  constructor(outputChannel: vscode.OutputChannel, updateSettingsFlag: UpdateSettingsFlag) {
+  constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
-    this.updateSettingsFlag = updateSettingsFlag;
 
     this.builtinStubManager = new PyBuiltinStubManager(outputChannel);
   }
@@ -137,7 +135,6 @@ export class PythonStubManager {
     const hidden = config.get('openc3.autoEditorHide', true);
     const filesExcluded = config.get('files.exclude', {}) as any;
 
-    this.updateSettingsFlag.set();
     const hiddenPatterns = ['**/pystubs'];
     if (hidden) {
       for (const pattern of hiddenPatterns) {
@@ -150,7 +147,6 @@ export class PythonStubManager {
       }
       await config.update('files.exclude', filesExcluded);
     }
-    this.updateSettingsFlag.clear();
   }
 
   /**
@@ -160,9 +156,7 @@ export class PythonStubManager {
     const config = vscode.workspace.getConfiguration();
     const settingPath = 'python.analysis.stubPath';
 
-    this.updateSettingsFlag.set();
     await config.update(settingPath, './.vscode/pystubs', vscode.ConfigurationTarget.Workspace);
-    this.updateSettingsFlag.clear();
   }
 
   /**
@@ -171,11 +165,9 @@ export class PythonStubManager {
   private async configureDiagnosticSeverity() {
     const config = vscode.workspace.getConfiguration();
     const ignoreMissingSourcePath = 'python.analysis.diagnosticSeverityOverrides';
-    this.updateSettingsFlag.set();
     await config.update(ignoreMissingSourcePath, {
       reportMissingModuleSource: 'none',
     });
-    this.updateSettingsFlag.clear();
   }
 
   /**
@@ -198,9 +190,7 @@ export class PythonStubManager {
       pathsOut.push(p);
     }
 
-    this.updateSettingsFlag.set();
     await config.update(extraPathsSourcePath, pathsOut, vscode.ConfigurationTarget.Workspace);
-    this.updateSettingsFlag.clear();
   }
 
   public async addAllExistingPluginStubs(ignoredDirsPattern: string) {

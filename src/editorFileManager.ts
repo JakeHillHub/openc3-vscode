@@ -10,7 +10,7 @@ import * as fs from 'fs/promises';
 
 import { CosmosCmdTlmDB } from './cosmos/cmdTlm';
 import { CosmosProjectSearch } from './cosmos/config';
-import { debounce, UpdateSettingsFlag } from './utility';
+import { debounce } from './utility';
 
 const debounceInterval = 100; /* Avoid file updates within this interval, milliseconds */
 const alwaysIgnoreDirectories = ['node_modules', '.git', '.vscode'];
@@ -258,15 +258,9 @@ export class EditorFileManager {
   }
 
   public createVscodeSettingsWatcher(
-    reinitializeExtension: () => Promise<void>,
-    updateSettingsFlag: UpdateSettingsFlag
+    reinitializeExtension: () => Promise<void>
   ): vscode.Disposable {
     return vscode.workspace.onDidChangeConfiguration(async () => {
-      if (updateSettingsFlag.isSet()) {
-        return;
-      }
-
-      this.outputChannel.appendLine('vscode settings changed');
       await reinitializeExtension();
     });
   }

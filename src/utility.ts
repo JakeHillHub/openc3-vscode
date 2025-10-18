@@ -29,22 +29,6 @@ export function debounce<F extends (...args: any[]) => any>(
   };
 }
 
-export class UpdateSettingsFlag {
-  private isUpdatingSettings: number = 0;
-
-  public isSet(): boolean {
-    return this.isUpdatingSettings > 0;
-  }
-
-  public set() {
-    this.isUpdatingSettings++;
-  }
-
-  public clear() {
-    this.isUpdatingSettings--;
-  }
-}
-
 /**
  * Spoof an invisible user edit to force an editor refresh.
  * Ugly hack to force pylance to reevaluate pyfile when load_utility stubs are generated

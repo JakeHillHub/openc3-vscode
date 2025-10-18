@@ -122,6 +122,19 @@
           "type": "boolean",
           "default": true,
           "description": "Configure vscode to automatically hide generated .pyi stub files"
+        },
+        "openc3.preferredStyle": {
+          "type": "string",
+          "default": "inline",
+          "description": "Specifies the preferred completion method.",
+          "enum": [
+            "inline",
+            "positional"
+          ],
+          "enumDescriptions": [
+            "Use inline styling for components.",
+            "Use positional (e.g., CSS file) styling for components."
+          ]
         }
       }
     }

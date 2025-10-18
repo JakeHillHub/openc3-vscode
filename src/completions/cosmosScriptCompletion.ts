@@ -14,10 +14,8 @@ export enum Language {
 export enum CMethods {
   COMMAND_INLINE /* Inline syntax using "with" in a single string */,
   COMMAND_POSITIONAL /* Normal language syntax argument */,
-  COMMAND_OPTIONAL_KWD /* Optional Keyword/Hash Parameter */,
   TELEMETRY_INLINE /* Inline syntax in a single string */,
   TELEMETRY_POSITIONAL /* Normal language syntax with seperate args */,
-  TELEMETRY_OPTIONAL_KWD /* Optional Keyword/Hash Parameter */,
 }
 
 export enum ArgSource {
@@ -353,15 +351,14 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
   private _subscriptions: vscode.Disposable[] = [];
   private _language: Language;
 
-  private document: vscode.TextDocument | undefined;
-  private position: vscode.Position | undefined;
-
   private lineContext: LineContext;
 
   private outputChannel: vscode.OutputChannel;
 
   private defs: ScriptCompletionDefinition[];
   private db: CosmosCmdTlmDB;
+
+  private preferredStyle: CMethods[] = [CMethods.COMMAND_INLINE, CMethods.TELEMETRY_INLINE];
 
   constructor(
     outputChannel: vscode.OutputChannel,
@@ -379,6 +376,10 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
 
     this.createCursorListener();
     this.createDeleteListener();
+
+    const config = vscode.workspace.getConfiguration();
+    this.updatePreferredStyle(config.get('openc3.preferredStyle', 'inline'));
+    this.registerConfigHook();
   }
 
   get language(): Language {
@@ -392,6 +393,23 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
 
   get additionalSubscriptions(): vscode.Disposable[] {
     return this._subscriptions;
+  }
+
+  private updatePreferredStyle(newStyle: string) {
+    if (newStyle === 'positional') {
+      this.preferredStyle = [CMethods.COMMAND_POSITIONAL, CMethods.TELEMETRY_POSITIONAL];
+    } else {
+      this.preferredStyle = [CMethods.COMMAND_INLINE, CMethods.TELEMETRY_INLINE];
+    }
+  }
+
+  private registerConfigHook() {
+    this._subscriptions.push(
+      vscode.workspace.onDidChangeConfiguration(async () => {
+        const config = vscode.workspace.getConfiguration();
+        this.updatePreferredStyle(config.get('openc3.preferredStyle', 'inline'));
+      })
+    );
   }
 
   private createCursorListener() {
@@ -975,6 +993,20 @@ export class CosmosScriptCompletionProvider implements vscode.CompletionItemProv
     const completionItems: vscode.CompletionItem[] = [];
     let err: Error | undefined = undefined;
 
+    const possibleMethods = group.methods;
+    for (const method of this.preferredStyle) {
+      /* If the preference matches possible methods */
+      if (possibleMethods.includes(method)) {
+        return this.generateCmdTlmCompletion(method, group, false);
+      }
+    }
+
+    if (group.methods.length === 1) {
+      /* If theres only one possible method */
+      return this.generateCmdTlmCompletion(group.methods[0], group, false);
+    }
+
+    /* If all else fails, just provide all possible methods */
     for (const method of group.methods) {
       /* Aggregate all methods with annotations */
       try {
