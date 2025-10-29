@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 
 import { CosmosProjectSearch } from './config';
 import { triggerEditorRefresh } from '../utility';
@@ -119,12 +119,12 @@ export class PythonStubManager {
     }
 
     const stubDir = path.join(workspaceFolder.uri.fsPath, '.vscode', 'pystubs');
-    if (!fs.existsSync(stubDir)) {
-      await fs.promises.mkdir(stubDir, { recursive: true });
+    if (!fs.access(stubDir)) {
+      await fs.mkdir(stubDir, { recursive: true });
     }
 
     const stubSrc = path.resolve(__dirname, 'pystubs');
-    await fs.promises.cp(stubSrc, stubDir, { recursive: true });
+    await fs.cp(stubSrc, stubDir, { recursive: true });
   }
 
   /**

@@ -2,7 +2,8 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as fssync from 'fs';
+import * as fs from 'fs/promises';
 import erb from 'erb';
 
 export const TARGET_NAME_ERB_VAR = 'target_name';
@@ -18,18 +19,6 @@ export interface CosmosERBConfig {
 
 const pluginVarExpr = /^VARIABLE\s+(\S+)\s+(.*)$/;
 const pluginTargetExpr = /^TARGET\s+(\S+)\s+(\S+)$/;
-
-export async function parseERB(contents: string, variables: Map<string, string>): Promise<string> {
-  contents = contents.replace(/^\s*#.*$/gm, ''); /* Remove comments */
-
-  return await erb({
-    template: contents,
-    data: {
-      values: Object.fromEntries(variables),
-    },
-    timeout: 5000,
-  });
-}
 
 export class CosmosPluginConfig {
   private outputChannel: vscode.OutputChannel;
@@ -55,7 +44,7 @@ export class CosmosPluginConfig {
     path: string,
     patternReplace: Map<string, string>
   ): Promise<string> {
-    let contents = await fs.promises.readFile(path, 'utf-8');
+    let contents = await fs.readFile(path, 'utf-8');
 
     for (const [re, value] of patternReplace) {
       contents = contents.replace(new RegExp(re, 'g'), value);
@@ -92,7 +81,7 @@ export class CosmosPluginConfig {
     }
 
     try {
-      const erbResult = await parseERB(contents, erbVars);
+      const erbResult = await parseERB(this.outputChannel, this.path, contents, erbVars);
       const erbLines = erbResult.split(/\r?\n/);
       for (let line of erbLines) {
         line = line.trim();
@@ -113,42 +102,100 @@ export class CosmosPluginConfig {
   }
 }
 
+function workspaceRoots(): string[] | undefined {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    return undefined;
+  }
+
+  return workspaceFolders.map((wf) => path.normalize(wf.uri.fsPath));
+}
+
+function searchAscendingPath(startDir: string, fileName: string): string | undefined {
+  const workspacePaths = workspaceRoots();
+  if (workspacePaths === undefined) {
+    return undefined;
+  }
+
+  let currentDir = path.normalize(startDir);
+  let previousDir: string | undefined = undefined;
+
+  while (currentDir !== previousDir) {
+    const configPath = path.join(currentDir, fileName);
+
+    // Check if the config file exists
+    if (fssync.existsSync(configPath)) {
+      return configPath;
+    }
+
+    // Check if we have hit a workspace folder
+    if (workspacePaths.includes(currentDir)) {
+      return undefined;
+    }
+
+    // Recurse up and check for the infinite loop condition
+    previousDir = currentDir;
+    currentDir = path.dirname(currentDir);
+  }
+
+  return undefined;
+}
+
+const RUBY_SEARCH_DIRS = ['', 'lib'];
+
+async function searchWorkspaceRubyFileName(
+  outputChannel: vscode.OutputChannel,
+  startDir: string,
+  fileName: string,
+  workspacePaths: string[]
+): Promise<string | undefined> {
+  let currentDir = path.normalize(startDir);
+
+  for (const subDir of RUBY_SEARCH_DIRS) {
+    const searchPath = path.join(currentDir, subDir, fileName);
+
+    try {
+      await fs.access(searchPath);
+      outputChannel.appendLine(`Found ruby require at ${searchPath}`);
+      return searchPath;
+    } catch {}
+  }
+
+  const parentDir = path.dirname(currentDir);
+  if (parentDir === currentDir || workspacePaths.includes(currentDir)) {
+    return undefined; // Stop the traversal. We've either hit '/' or the boundary.
+  }
+
+  return await searchWorkspaceRubyFileName(outputChannel, parentDir, fileName, workspacePaths);
+}
+
+async function searchRubyRequire(
+  outputChannel: vscode.OutputChannel,
+  startDir: string,
+  rubyRequireName: string
+): Promise<string | undefined> {
+  const workspacePaths = workspaceRoots();
+  if (workspacePaths === undefined) {
+    return undefined;
+  }
+
+  if (!rubyRequireName.endsWith('.rb')) {
+    rubyRequireName = `${rubyRequireName}.rb`;
+  }
+
+  return await searchWorkspaceRubyFileName(
+    outputChannel,
+    startDir,
+    rubyRequireName,
+    workspacePaths
+  );
+}
+
 export class CosmosProjectSearch {
   private outputChannel: vscode.OutputChannel;
 
   public constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
-  }
-
-  private searchPath(startDir: string, fileName: string): string | undefined {
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders || workspaceFolders.length === 0) {
-      return undefined;
-    }
-
-    const workspacePaths = workspaceFolders.map((wf) => path.normalize(wf.uri.fsPath));
-    let currentDir = path.normalize(startDir);
-    let previousDir: string | undefined = undefined;
-
-    while (currentDir !== previousDir) {
-      const configPath = path.join(currentDir, fileName);
-
-      // Check if the config file exists
-      if (fs.existsSync(configPath)) {
-        return configPath;
-      }
-
-      // Check if we have hit a workspace folder
-      if (workspacePaths.includes(currentDir)) {
-        return undefined;
-      }
-
-      // Recurse up and check for the infinite loop condition
-      previousDir = currentDir;
-      currentDir = path.dirname(currentDir);
-    }
-
-    return undefined;
   }
 
   public async getAllTargetDirs(
@@ -188,7 +235,7 @@ export class CosmosProjectSearch {
   }
 
   public getPluginConfig(startDir: string): [CosmosPluginConfig, string] {
-    const configPath = this.searchPath(startDir, PLUGIN_CONFIG_NAME);
+    const configPath = searchAscendingPath(startDir, PLUGIN_CONFIG_NAME);
     if (!configPath) {
       return [new CosmosPluginConfig(undefined, this.outputChannel), ''];
     }
@@ -197,8 +244,8 @@ export class CosmosProjectSearch {
     return [pluginConfig, path.dirname(configPath)];
   }
 
-  public getERBConfig(startDir: string): CosmosERBConfig {
-    const configPath = this.searchPath(startDir, ERB_CONFIG_NAME);
+  public async getERBConfig(startDir: string): Promise<CosmosERBConfig> {
+    const configPath = searchAscendingPath(startDir, ERB_CONFIG_NAME);
     if (!configPath) {
       return {
         path: undefined,
@@ -207,7 +254,7 @@ export class CosmosProjectSearch {
       };
     }
 
-    const fileContent = fs.readFileSync(configPath, 'utf-8');
+    const fileContent = await fs.readFile(configPath, 'utf-8');
     const parsed = JSON.parse(fileContent);
     if (parsed === undefined) {
       return {
@@ -234,15 +281,13 @@ export class CosmosProjectSearch {
   }
 
   public async getERBParseResult(filePath: string): Promise<string> {
-    const erbConfig = this.getERBConfig(path.dirname(filePath));
+    const erbConfig = await this.getERBConfig(path.dirname(filePath));
     const [plugin, pluginPath] = this.getPluginConfig(path.dirname(filePath));
     await plugin.parse(erbConfig);
 
     const derivedTargetNames = this.deriveTargetNames(plugin, pluginPath, filePath);
 
-    let contents = await fs.promises.readFile(filePath, {
-      encoding: 'utf-8',
-    });
+    let contents = await fs.readFile(filePath, 'utf-8');
     for (const [re, value] of erbConfig.patterns) {
       contents = contents.replace(new RegExp(re, 'g'), value);
     }
@@ -259,7 +304,153 @@ export class CosmosProjectSearch {
       variables.set(key, value);
     }
 
-    const parsed = await parseERB(contents, variables);
+    const parsed = await parseERB(this.outputChannel, filePath, contents, variables);
     return parsed.replace(/^(?:\s*[\r\n]){1,}/gm, '');
   }
+}
+
+const erbContentsRegex = /<%=?\s*([\s\S]*?)\s*%>/g;
+const requireRegex = /(require(?:\(|\s)['"][^'"]+['"](?:\)|\s)?)/g;
+const requireFileRegex = /['"]([^'"]+)['"]/;
+
+async function resolveRequires(
+  outputChannel: vscode.OutputChannel,
+  filePath: string,
+  contents: string,
+  pathStack: Set<string> = new Set<string>()
+): Promise<string> {
+  let text = contents;
+
+  const erbContentsMatches = text.matchAll(erbContentsRegex);
+  if (!erbContentsMatches) {
+    return text;
+  }
+
+  for (const erbMatch of erbContentsMatches) {
+    const [_, erbInner] = erbMatch;
+    if (!erbInner) {
+      continue;
+    }
+
+    const requireMatches = erbInner.matchAll(requireRegex);
+    for (const requireMatch of requireMatches) {
+      const [_, requireOuter] = requireMatch;
+      if (!requireOuter) {
+        continue;
+      }
+
+      const fileMatch = requireOuter.match(requireFileRegex);
+      if (!fileMatch) {
+        continue;
+      }
+
+      const [__, rubyRequireName] = fileMatch;
+      if (!rubyRequireName) {
+        continue;
+      }
+
+      const startDir = path.dirname(filePath);
+      const rubyFileMatch = await searchRubyRequire(outputChannel, startDir, rubyRequireName);
+      if (rubyFileMatch === undefined) {
+        continue;
+      }
+
+      if (pathStack.has(rubyFileMatch)) {
+        const stackOutput = [...pathStack].join('->\n');
+        outputChannel.append(
+          `Warning: circular dependency in erb require chain encountered: \n${stackOutput}\n`
+        );
+        text = text.replace(requireOuter, ''); // Remove require statement
+        continue; // End recursion, file is already on the stack
+      }
+      pathStack.add(rubyFileMatch);
+
+      const rubyFileContents = await fs.readFile(rubyFileMatch, 'utf-8');
+
+      // Recursively do this again to match sub requires and so on...
+      const updated = text.replace(requireOuter, rubyFileContents);
+      text = await resolveRequires(outputChannel, filePath, updated, pathStack);
+    }
+  }
+
+  return text;
+}
+
+const rendersRegex = /<%=?\s*render\s+['"]([^'"]+)['"]\s*,\s*locals:\s*({.*?})\s*%>/g;
+
+async function resolveRenders(
+  outputChannel: vscode.OutputChannel,
+  filePath: string,
+  contents: string,
+  erbVariables: Map<string, string>
+): Promise<string> {
+  let text = contents;
+  const renderMatches = text.matchAll(rendersRegex);
+  if (!renderMatches) {
+    return text;
+  }
+
+  for (const match of renderMatches) {
+    const [fullMatch, fileName, localsObject] = match;
+    if (!fileName || !localsObject) {
+      continue;
+    }
+
+    const renderPath = path.join(path.dirname(filePath), fileName);
+    try {
+      await fs.access(renderPath);
+      const renderContents = await fs.readFile(renderPath, 'utf-8');
+
+      const expression = `(${localsObject})`;
+      const valuesObj = (0, eval)(expression) as object;
+
+      const chunkVariables = new Map<string, string>();
+      for (const [k, v] of Object.entries(valuesObj)) {
+        chunkVariables.set(k, v);
+      }
+      for (const [k, v] of erbVariables.entries()) {
+        chunkVariables.set(k, v);
+      }
+
+      const erbParsedContents = await parseERB(
+        outputChannel,
+        renderPath,
+        renderContents,
+        chunkVariables
+      );
+
+      text = text.replace(fullMatch, erbParsedContents);
+    } catch (err) {
+      outputChannel.appendLine(`Error: Could not process render file ${renderPath} ${err}`);
+      continue;
+    }
+  }
+
+  return text;
+}
+
+export async function parseERB(
+  outputChannel: vscode.OutputChannel,
+  filePath: string,
+  contents: string,
+  variables: Map<string, string>
+): Promise<string> {
+  let erbRenderValues = {};
+
+  let text = await resolveRequires(outputChannel, filePath, contents);
+  text = await resolveRenders(outputChannel, filePath, text, variables);
+  text = text.replace(/^\s*#.*$/gm, ''); /* Remove comments */
+
+  const allErbValues = {
+    ...Object.fromEntries(variables),
+    ...erbRenderValues,
+  };
+
+  return await erb({
+    template: text,
+    data: {
+      values: allErbValues,
+    },
+    timeout: 5000,
+  });
 }

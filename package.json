@@ -42,7 +42,8 @@
           "OpenC3 CmdTlm"
         ],
         "filenamePatterns": [
-          "**/cmd_tlm/*.txt"
+          "**/cmd_tlm/*.txt",
+          "erb-*.txt"
         ],
         "configuration": "./syntaxes/openc3-language-configuration.json"
       },
@@ -98,7 +99,7 @@
         {
           "command": "openc3.showERB",
           "group": "navigation@1",
-          "when": "resourceExtname == .txt && (resourceFilename == cmd.txt || resourceFilename == tlm.txt || resourceFilename == plugin.txt || resourceFilename == target.txt)"
+          "when": "resourceExtname == .txt && (resourceFilename =~ /^(target|plugin)\\.txt$/ || (resourcePath =~ /cmd_tlm\\/.*?\\.txt$/))"
         }
       ]
     },

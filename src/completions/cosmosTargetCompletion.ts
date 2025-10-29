@@ -76,5 +76,10 @@ const staticDefinitions: common.CompletionDefinition[] = [
 export function createTargetCompletions(
   outputChannel: vscode.OutputChannel
 ): CosmosConfigurationCompletion {
-  return new CosmosConfigurationCompletion(outputChannel, staticDefinitions, []);
+  return new CosmosConfigurationCompletion(
+    outputChannel,
+    staticDefinitions,
+    [],
+    'target.txt completion provider'
+  );
 }

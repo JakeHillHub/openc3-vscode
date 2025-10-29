@@ -211,9 +211,7 @@ export class EditorFileManager {
 
         this.outputChannel.appendLine(`Recompiling ${uri.fsPath}`);
 
-        /* Always compile as both cmd and tlm in case both definitions exist */
-        cmdTlmDB.compileCmdFile(uri.fsPath);
-        cmdTlmDB.compileTlmFile(uri.fsPath);
+        cmdTlmDB.compileCmdTlmFile(uri.fsPath);
       }, debounceInterval)
     );
 
@@ -227,7 +225,7 @@ export class EditorFileManager {
 
         const fileName = path.basename(uri.fsPath);
         if (fileName === 'openc3-erb.json') {
-          this.outputChannel.appendLine(`Recompiling workspace`);
+          this.outputChannel.appendLine(`Recompiling workspace after openc3-erb.json change`);
           await cmdTlmDB.compileWorkspace(this.ignoredPattern);
         }
       }, debounceInterval)

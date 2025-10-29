@@ -15,6 +15,7 @@ import {
   createPyScriptCompletions,
   createRbScriptCompletions,
 } from './completions/scriptCompletionDefinitions';
+import { RubyStubManager } from './cosmos/rubyStubManager';
 
 const cleanupResources = new Array<vscode.Disposable>();
 
@@ -59,6 +60,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const cmdTlmDB = new CosmosCmdTlmDB(outputChannel);
   const pythonStubManager = new PythonStubManager(outputChannel);
+  const rubyStubManager = new RubyStubManager(outputChannel);
   const gitIgnoreManager = new GitIgnoreManager(outputChannel);
 
   const pyComplete = createPyScriptCompletions(outputChannel, cmdTlmDB);
@@ -87,6 +89,7 @@ export async function activate(context: vscode.ExtensionContext) {
     ...pyComplete.additionalSubscriptions,
     ...editorFileWatchers,
     ...pythonStubManager.createSubscriptions(),
+    ...rubyStubManager.createSubscriptions(),
     ...createCosmosCompletionProviders(outputChannel)
   );
 
@@ -107,11 +110,16 @@ export async function activate(context: vscode.ExtensionContext) {
           initialGitIgnorePatterns.push(pyStubsPath);
         }
         await gitIgnoreManager.initializeGitIgnore(...initialGitIgnorePatterns);
-        await pythonStubManager.configureHiddenStubs();
+
+        await Promise.all([
+          await pythonStubManager.configureHiddenStubs(),
+          await rubyStubManager.configureHiddenStubs(),
+        ]);
 
         await Promise.all([
           cmdTlmDB.compileWorkspace(editorFileManager.getIgnoredDirPattern()),
           pythonStubManager.initializeStubs(editorFileManager.getIgnoredDirPattern()),
+          rubyStubManager.initializeStubs(editorFileManager.getIgnoredDirPattern()),
         ]);
 
         vscode.window.showInformationMessage(

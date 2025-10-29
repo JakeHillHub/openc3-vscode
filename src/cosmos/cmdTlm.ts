@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 
 import {
   CosmosPluginConfig,
@@ -53,6 +53,7 @@ interface CmdTlmResources {
   plugin: CosmosPluginConfig;
   pluginDirectory: string;
   pluginName: string;
+  erbValues: Map<string, string>;
 }
 
 export interface CmdArgument {
@@ -469,28 +470,7 @@ export class CmdFileParser {
     }
   }
 
-  private async parseTarget(fileContents: string, resources: CmdTlmResources, targetName: string) {
-    const erbValues = new Map<string, string>();
-    erbValues.set(TARGET_NAME_ERB_VAR, targetName);
-    for (const [key, value] of resources.erb.variables) {
-      erbValues.set(key, value);
-    }
-    await resources.plugin.parse(resources.erb);
-    for (const [key, value] of resources.plugin.variables) {
-      erbValues.set(key, value);
-    }
-
-    let erbResult = undefined;
-    try {
-      erbResult = await parseERB(fileContents, erbValues);
-    } catch (err) {
-      this.outputChannel.appendLine(`erb error: ${err}`);
-      this.outputChannel.show(true);
-      throw err;
-    }
-
-    const lines = erbResult.split(/\r?\n/);
-
+  private async parseTarget(lines: string[], targetName: string) {
     for (const line of lines) {
       this.lineNumber++;
       const sanitized = line.trim();
@@ -515,10 +495,9 @@ export class CmdFileParser {
     this.storeBufferedCmdDef(targetName);
   }
 
-  public async parse(resources: CmdTlmResources) {
-    const fileContents = fs.readFileSync(this.path, 'utf-8');
+  public async parse(fileLines: string[], resources: CmdTlmResources) {
     for (const targetName of resources.targets) {
-      await this.parseTarget(fileContents, resources, targetName);
+      await this.parseTarget(fileLines, targetName);
     }
   }
 }
@@ -823,28 +802,7 @@ export class TlmFileParser {
     }
   }
 
-  private async parseTarget(fileContents: string, resources: CmdTlmResources, targetName: string) {
-    const erbValues = new Map<string, string>();
-    erbValues.set(TARGET_NAME_ERB_VAR, targetName);
-    for (const [key, value] of resources.erb.variables) {
-      erbValues.set(key, value);
-    }
-    await resources.plugin.parse(resources.erb);
-    for (const [key, value] of resources.plugin.variables) {
-      erbValues.set(key, value);
-    }
-
-    let erbResult = undefined;
-    try {
-      erbResult = await parseERB(fileContents, erbValues);
-    } catch (err) {
-      this.outputChannel.appendLine(`erb error: ${err}`);
-      this.outputChannel.show(true);
-      throw err;
-    }
-
-    const lines = erbResult.split(/\r?\n/);
-
+  private async parseTarget(lines: string[], targetName: string) {
     for (const line of lines) {
       this.lineNumber++;
       const sanitized = line.trim();
@@ -869,10 +827,9 @@ export class TlmFileParser {
     this.storeBufferedTlmDef(targetName);
   }
 
-  public async parse(resources: CmdTlmResources) {
-    const fileContents = fs.readFileSync(this.path, 'utf-8');
+  public async parse(fileLines: string[], resources: CmdTlmResources) {
     for (const targetName of resources.targets) {
-      await this.parseTarget(fileContents, resources, targetName);
+      await this.parseTarget(fileLines, targetName);
     }
   }
 }
@@ -881,12 +838,15 @@ export class CosmosCmdTlmDB {
   /* Structure end data packet such that target->cmd/tlm->fields/params->metadata */
   private cmdMap: Map<string, Map<string, CmdDefinition>>;
   private tlmMap: Map<string, Map<string, TlmDefinition>>;
+  private resourceCache: Map<string, CmdTlmResources>;
   private outputChannel: vscode.OutputChannel;
+  private compilingWorkspace: boolean = false;
 
   public constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
     this.cmdMap = new Map<string, Map<string, CmdDefinition>>();
     this.tlmMap = new Map<string, Map<string, TlmDefinition>>();
+    this.resourceCache = new Map<string, CmdTlmResources>();
   }
 
   private getMapKeys(map: Map<string, any>): Array<string> {
@@ -961,29 +921,50 @@ export class CosmosCmdTlmDB {
     }
   }
 
+  public clearResourceCache() {
+    this.resourceCache.clear();
+  }
+
   private async getCmdTlmFileResources(filePath: string): Promise<CmdTlmResources> {
     const cSearch = new CosmosProjectSearch(this.outputChannel);
-    const erbConfig = cSearch.getERBConfig(path.dirname(filePath)); /* Can fail gracefully */
-
+    const erbConfig = await cSearch.getERBConfig(path.dirname(filePath)); /* Can fail gracefully */
     const [plugin, pluginPath] = cSearch.getPluginConfig(path.dirname(filePath));
+
+    const cached = this.resourceCache.get(pluginPath);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     await plugin.parse(erbConfig); /* Can fail gracefully */
 
     const targets = cSearch.deriveTargetNames(plugin, pluginPath, filePath);
 
-    return {
+    await plugin.parse(erbConfig);
+
+    const erbValues = new Map<string, string>();
+    for (const [key, value] of plugin.variables) {
+      erbValues.set(key, value);
+    }
+    for (const [key, value] of erbConfig.variables) {
+      erbValues.set(key, value);
+    }
+
+    const resources = {
       erb: erbConfig,
       plugin: plugin,
       targets: targets,
       pluginDirectory: pluginPath,
       pluginName: path.basename(pluginPath),
+      erbValues: erbValues,
     };
+
+    this.resourceCache.set(pluginPath, resources);
+    return resources;
   }
 
-  public async compileCmdFile(cmdFilePath: string) {
-    const resources = await this.getCmdTlmFileResources(cmdFilePath);
-
-    const parser = new CmdFileParser(cmdFilePath, this.outputChannel);
-    await parser.parse(resources);
+  private async compileCmdFile(path: string, fileLines: string[], resources: CmdTlmResources) {
+    const parser = new CmdFileParser(path, this.outputChannel);
+    await parser.parse(fileLines, resources);
 
     for (const cmd of parser.getCommands()) {
       let targetCmds = this.cmdMap.get(cmd.target);
@@ -995,11 +976,9 @@ export class CosmosCmdTlmDB {
     }
   }
 
-  public async compileTlmFile(tlmFilePath: string) {
-    const resources = await this.getCmdTlmFileResources(tlmFilePath);
-
-    const parser = new TlmFileParser(tlmFilePath, this.outputChannel);
-    await parser.parse(resources);
+  private async compileTlmFile(path: string, fileLines: string[], resources: CmdTlmResources) {
+    const parser = new TlmFileParser(path, this.outputChannel);
+    await parser.parse(fileLines, resources);
 
     for (const packet of parser.getPackets()) {
       let targetTlm = this.tlmMap.get(packet.target);
@@ -1011,12 +990,57 @@ export class CosmosCmdTlmDB {
     }
   }
 
+  private async parseCmdTlmERB(
+    filePath: string,
+    fileContents: string,
+    resources: CmdTlmResources,
+    targetName: string
+  ): Promise<string[]> {
+    resources.erbValues.set(TARGET_NAME_ERB_VAR, targetName);
+
+    let erbResult = undefined;
+
+    try {
+      erbResult = await parseERB(this.outputChannel, filePath, fileContents, resources.erbValues);
+      erbResult = erbResult.split(/\r?\n/);
+    } catch (err) {
+      this.outputChannel.appendLine(`erb error: ${err}`);
+      this.outputChannel.show(true);
+      throw err;
+    }
+
+    if (erbResult === undefined) {
+      throw new Error(
+        'erb result undefined - this is impossible'
+      ); /* Is not possible - here so that typescript is still stoked on this function */
+    }
+    return erbResult;
+  }
+
+  public async compileCmdTlmFile(filePath: string) {
+    const fileName = path.basename(filePath);
+    if (fileName.startsWith('_')) {
+      this.outputChannel.appendLine(`skipping cmd/tlm file ${fileName}`);
+      return;
+    }
+
+    const resources = await this.getCmdTlmFileResources(filePath);
+    const fileContents = await fs.readFile(filePath, 'utf-8');
+
+    for (const targetName of resources.targets) {
+      const fileLines = await this.parseCmdTlmERB(filePath, fileContents, resources, targetName);
+
+      await this.compileCmdFile(filePath, fileLines, resources);
+      await this.compileTlmFile(filePath, fileLines, resources);
+    }
+  }
+
   private async compileCmdTlm(excludePattern: string) {
     // Search for all files named 'cmd.txt' in the workspace.
     const fileUris = await vscode.workspace.findFiles('**/cmd_tlm/*.txt', excludePattern);
 
     if (fileUris.length === 0) {
-      this.outputChannel.appendLine('No .cmd.txt files found in the workspace.');
+      this.outputChannel.appendLine('No cmd/tlm.txt files found in the workspace.');
       return;
     }
 
@@ -1024,8 +1048,7 @@ export class CosmosCmdTlmDB {
     for (const fileUri of fileUris) {
       try {
         this.outputChannel.appendLine(`Compiling: ${fileUri.fsPath}`);
-        await this.compileCmdFile(fileUri.fsPath);
-        await this.compileTlmFile(fileUri.fsPath);
+        this.compileCmdTlmFile(fileUri.fsPath);
       } catch (error) {
         this.outputChannel.appendLine(`Error compiling ${fileUri.fsPath}: ${error}`);
       }
@@ -1033,8 +1056,16 @@ export class CosmosCmdTlmDB {
   }
 
   public async compileWorkspace(excludePattern: string) {
+    if (this.compilingWorkspace) {
+      return;
+    }
+
+    this.compilingWorkspace = true;
+    this.clearResourceCache();
+
     this.outputChannel.appendLine('Scanning workspace for cmd/tlm definitions');
     await this.compileCmdTlm(excludePattern);
     this.outputChannel.appendLine('Compiling workspace complete');
+    this.compilingWorkspace = false;
   }
 }

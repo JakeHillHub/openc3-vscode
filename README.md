@@ -141,6 +141,11 @@ NOTE: This extension will only activate if your workspace contains both:
 Certain python scripting features will not work properly without the [pylance extension](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance).
 This extension automatically generates pylance configuration settings in .vscode/settings.json
 
+For ruby you will need some extension that supports .rbs type signatures (Extension has only been tested with soutaro.steep-vscode + shopify.ruby-lsp)
+
+- "shopify.ruby-lsp"
+- "soutaro.steep-vscode"
+
 ## Extension Settings
 
 This extension contributes the following settings:
@@ -148,10 +153,13 @@ This extension contributes the following settings:
 - `openc3.ignoreDirectories`: list of directory names to ignore for context generation
 - `openc3.autoGitignore`: Set to false to prevent .gitignore updates for scripting stubs
 - `openc3.autoEditorHide`: Set to false to prevent editor from hiding generated .pyi stub files
+- `openc3.preferredStyle`: Set to "inline" for cmd("TARG MNEMONIC ...") or "positional" for cmd("TARG", "MNEMONIC"). Both styles are still possible at all times, this manages where your cursor gets placed during completions
 
 ## Known Issues
 
 There are probably tons, you are welcome to open issues [here](https://github.com/JakeHillHub/openc3-vscode/issues)
+
+- Dollar signs in cmd/tlm files sometimes cause erb parse to fail, fix coming eventually
 
 ## Release Notes
 
@@ -162,3 +170,25 @@ Initial release, includes minimum set of features to be somewhat useful
 ### 0.1.2
 
 Resolve quirky behavior in scripting autocompletions
+
+### 0.2.0
+
+- Improve parsing efficiency to manage much larger projects
+- Implement erb `require` which can include ruby files from project and utilize them during erb compilation
+
+```ruby
+# require search will look through the ascending directory structure and in lib directories
+<%
+require 'otherfile'  # Located at ../lib/otherfile.rb
+
+some_result = function_defined_in_otherfile()
+%>
+```
+
+- Implement erb `render` which includes additional cmd/tlm files in place with locals defined
+
+```ruby
+TELEMETRY INST HEALTH_STATUS BIG_ENDIAN "Health and status"
+  <%= render "_ccsds_apid.txt", locals: {apid: 1} %>  # <- this works now
+  APPEND_ITEM COLLECTS     16 UINT   "Number of collects"
+```

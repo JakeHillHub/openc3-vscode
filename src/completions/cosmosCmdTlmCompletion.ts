@@ -1193,6 +1193,7 @@ export function createCmdTlmCompletions(
   return new CosmosConfigurationCompletion(
     outputChannel,
     staticDefinitions,
-    contextualCmdDefinitions
+    contextualCmdDefinitions,
+    'cmd/tlm completion provider'
   );
 }
