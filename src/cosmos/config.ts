@@ -262,35 +262,22 @@ const erbContentsRegex = /<%=?\s*([\s\S]*?)\s*%>/g;
 const requireRegex = /(require(?:\(|\s)['"][^'"]+['"](?:\)|\s)?)/g;
 const requireFileRegex = /['"]([^'"]+)['"]/;
 
-// function simpleHash(str: string): number {
-//   let hash = 5381;
-//   let i = str.length;
-//   while (i) {
-//     hash = (hash * 33) ^ str.charCodeAt(--i);
-//   }
-//   return hash >>> 0;
-// }
+function simpleHash(str: string): number {
+  let hash = 5381;
+  let i = str.length;
+  while (i) {
+    hash = (hash * 33) ^ str.charCodeAt(--i);
+  }
+  return hash >>> 0;
+}
 
 async function resolveRequires(
   outputChannel: vscode.OutputChannel,
   filePath: string,
-  contents: string
-  // seenHashes: Set<number> = new Set<number>()
+  contents: string,
+  pathStack: Set<string> = new Set<string>()
 ): Promise<string> {
   let text = contents;
-
-  outputChannel.appendLine(`resolve requires ${filePath}`);
-
-  // const currentHash = simpleHash(contents);
-  // if (seenHashes.has(currentHash)) {
-  //   vscode.window.showInformationMessage(
-  //     `Infinite recursion detected and blocked for file: ${filePath}`
-  //   );
-  //   return text; // Return current text without further processing
-  // }
-  // vscode.window.showInformationMessage(`pass ${seenHashes}`);
-  // const newHashes = new Set(seenHashes);
-  // newHashes.add(currentHash);
 
   const erbContentsMatches = text.matchAll(erbContentsRegex);
   if (!erbContentsMatches) {
@@ -326,11 +313,18 @@ async function resolveRequires(
         continue;
       }
 
+      if (pathStack.has(rubyFileMatch)) {
+        outputChannel.appendLine('Require recursion terminated on same include');
+        text = text.replace(requireOuter, ''); // Remove require statement
+        continue; // End recursion, file is already on the stack
+      }
+      pathStack.add(rubyFileMatch);
+
       const rubyFileContents = await fs.readFile(rubyFileMatch, 'utf-8');
 
       // Recursively do this again to match sub requires and so on...
       const updated = text.replace(requireOuter, rubyFileContents);
-      text = await resolveRequires(outputChannel, filePath, updated);
+      text = await resolveRequires(outputChannel, filePath, updated, pathStack);
     }
   }
 
