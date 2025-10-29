@@ -211,9 +211,7 @@ export class EditorFileManager {
 
         this.outputChannel.appendLine(`Recompiling ${uri.fsPath}`);
 
-        /* Always compile as both cmd and tlm in case both definitions exist */
-        cmdTlmDB.compileCmdFile(uri.fsPath);
-        cmdTlmDB.compileTlmFile(uri.fsPath);
+        cmdTlmDB.compileCmdTlmFile(uri.fsPath);
       }, debounceInterval)
     );
 

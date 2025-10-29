@@ -108,10 +108,10 @@ export class RubyStubManager {
    * @param newPath directory containing .pyi stub file(s)
    */
   public async addDynamicStubPath(newPath: string) {
-    this.outputChannel.appendLine('not implemented');
+    this.outputChannel.appendLine('Ruby stub not implemented');
   }
 
   public async addAllExistingPluginStubs(ignoredDirsPattern: string) {
-    this.outputChannel.appendLine('not implemented');
+    this.outputChannel.appendLine('Ruby stub not implemented');
   }
 }

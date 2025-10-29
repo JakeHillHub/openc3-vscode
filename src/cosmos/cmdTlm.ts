@@ -53,6 +53,7 @@ interface CmdTlmResources {
   plugin: CosmosPluginConfig;
   pluginDirectory: string;
   pluginName: string;
+  erbValues: Map<string, string>;
 }
 
 export interface CmdArgument {
@@ -926,7 +927,7 @@ export class CosmosCmdTlmDB {
 
   private async getCmdTlmFileResources(filePath: string): Promise<CmdTlmResources> {
     const cSearch = new CosmosProjectSearch(this.outputChannel);
-    const erbConfig = cSearch.getERBConfig(path.dirname(filePath)); /* Can fail gracefully */
+    const erbConfig = await cSearch.getERBConfig(path.dirname(filePath)); /* Can fail gracefully */
     const [plugin, pluginPath] = cSearch.getPluginConfig(path.dirname(filePath));
 
     const cached = this.resourceCache.get(pluginPath);
@@ -938,21 +939,32 @@ export class CosmosCmdTlmDB {
 
     const targets = cSearch.deriveTargetNames(plugin, pluginPath, filePath);
 
+    await plugin.parse(erbConfig);
+
+    const erbValues = new Map<string, string>();
+    for (const [key, value] of plugin.variables) {
+      erbValues.set(key, value);
+    }
+    for (const [key, value] of erbConfig.variables) {
+      erbValues.set(key, value);
+    }
+
     const resources = {
       erb: erbConfig,
       plugin: plugin,
       targets: targets,
       pluginDirectory: pluginPath,
       pluginName: path.basename(pluginPath),
+      erbValues: erbValues,
     };
 
     this.resourceCache.set(pluginPath, resources);
     return resources;
   }
 
-  public async compileCmdFile(cmdFilePath: string, resources: CmdTlmResources) {
-    const parser = new CmdFileParser(cmdFilePath, this.outputChannel);
-    await parser.parse(resources);
+  private async compileCmdFile(path: string, fileLines: string[], resources: CmdTlmResources) {
+    const parser = new CmdFileParser(path, this.outputChannel);
+    await parser.parse(fileLines, resources);
 
     for (const cmd of parser.getCommands()) {
       let targetCmds = this.cmdMap.get(cmd.target);
@@ -964,9 +976,9 @@ export class CosmosCmdTlmDB {
     }
   }
 
-  public async compileTlmFile(tlmFilePath: string, resources: CmdTlmResources) {
-    const parser = new TlmFileParser(tlmFilePath, this.outputChannel);
-    await parser.parse(resources);
+  private async compileTlmFile(path: string, fileLines: string[], resources: CmdTlmResources) {
+    const parser = new TlmFileParser(path, this.outputChannel);
+    await parser.parse(fileLines, resources);
 
     for (const packet of parser.getPackets()) {
       let targetTlm = this.tlmMap.get(packet.target);
@@ -978,35 +990,39 @@ export class CosmosCmdTlmDB {
     }
   }
 
+  private async parseCmdTlmERB(
+    fileContents: string,
+    resources: CmdTlmResources,
+    targetName: string
+  ): Promise<string[]> {
+    resources.erbValues.set(TARGET_NAME_ERB_VAR, targetName);
+
+    let erbResult = undefined;
+
+    try {
+      erbResult = await parseERB(fileContents, resources.erbValues);
+      erbResult = erbResult.split(/\r?\n/);
+    } catch (err) {
+      this.outputChannel.appendLine(`erb error: ${err}`);
+      this.outputChannel.show(true);
+      throw err;
+    }
+
+    if (erbResult === undefined) {
+      throw new Error('erb result undefined - this is impossible'); /* Should not be possible */
+    }
+    return erbResult;
+  }
+
   public async compileCmdTlmFile(filePath: string) {
     const resources = await this.getCmdTlmFileResources(filePath);
-
-    const fileContents = await fs.readFile(filePath);
+    const fileContents = await fs.readFile(filePath, 'utf-8');
 
     for (const targetName of resources.targets) {
-      const erbValues = new Map<string, string>();
-      erbValues.set(TARGET_NAME_ERB_VAR, targetName);
-      for (const [key, value] of resources.erb.variables) {
-        erbValues.set(key, value);
-      }
-      await resources.plugin.parse(resources.erb);
-      for (const [key, value] of resources.plugin.variables) {
-        erbValues.set(key, value);
-      }
+      const fileLines = await this.parseCmdTlmERB(fileContents, resources, targetName);
 
-      let erbResult = undefined;
-      try {
-        erbResult = await parseERB(fileContents, erbValues);
-      } catch (err) {
-        this.outputChannel.appendLine(`erb error: ${err}`);
-        this.outputChannel.show(true);
-        throw err;
-      }
-
-      const lines = erbResult.split(/\r?\n/);
-
-      await this.compileCmdFile(filePath, resources, targetName);
-      await this.compileTlmFile(filePath, resources, targetName);
+      await this.compileCmdFile(filePath, fileLines, resources);
+      await this.compileTlmFile(filePath, fileLines, resources);
     }
   }
 

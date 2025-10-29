@@ -2,6 +2,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fssync from 'fs';
 import * as fs from 'fs/promises';
 import erb from 'erb';
 
@@ -134,7 +135,7 @@ export class CosmosProjectSearch {
       const configPath = path.join(currentDir, fileName);
 
       // Check if the config file exists
-      if (fs.existsSync(configPath)) {
+      if (fssync.existsSync(configPath)) {
         return configPath;
       }
 
@@ -197,7 +198,7 @@ export class CosmosProjectSearch {
     return [pluginConfig, path.dirname(configPath)];
   }
 
-  public getERBConfig(startDir: string): CosmosERBConfig {
+  public async getERBConfig(startDir: string): Promise<CosmosERBConfig> {
     const configPath = this.searchPath(startDir, ERB_CONFIG_NAME);
     if (!configPath) {
       return {
@@ -207,7 +208,7 @@ export class CosmosProjectSearch {
       };
     }
 
-    const fileContent = fs.readFileSync(configPath, 'utf-8');
+    const fileContent = await fs.readFile(configPath, 'utf-8');
     const parsed = JSON.parse(fileContent);
     if (parsed === undefined) {
       return {
@@ -234,15 +235,13 @@ export class CosmosProjectSearch {
   }
 
   public async getERBParseResult(filePath: string): Promise<string> {
-    const erbConfig = this.getERBConfig(path.dirname(filePath));
+    const erbConfig = await this.getERBConfig(path.dirname(filePath));
     const [plugin, pluginPath] = this.getPluginConfig(path.dirname(filePath));
     await plugin.parse(erbConfig);
 
     const derivedTargetNames = this.deriveTargetNames(plugin, pluginPath, filePath);
 
-    let contents = await fs.promises.readFile(filePath, {
-      encoding: 'utf-8',
-    });
+    let contents = await fs.readFile(filePath, 'utf-8');
     for (const [re, value] of erbConfig.patterns) {
       contents = contents.replace(new RegExp(re, 'g'), value);
     }
