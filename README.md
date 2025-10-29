@@ -165,3 +165,25 @@ Initial release, includes minimum set of features to be somewhat useful
 ### 0.1.2
 
 Resolve quirky behavior in scripting autocompletions
+
+### 0.2.0
+
+- Improve parsing efficiency to manage larger projects
+- Implement erb `require` which can include ruby files from project and utilize them during erb compilation
+
+```ruby
+# require search will look through the ascending directory structure and in lib directories
+<%
+require 'otherfile'  # Located at ../lib/otherfile.rb
+
+some_result = function_defined_in_otherfile()
+%>
+```
+
+- Implement erb `render` which includes additional cmd/tlm files in place with locals defined
+
+```ruby
+TELEMETRY INST HEALTH_STATUS BIG_ENDIAN "Health and status"
+  <%= render "_ccsds_apid.txt", locals: {apid: 1} %>  # <- this works now
+  APPEND_ITEM COLLECTS     16 UINT   "Number of collects"
+```

@@ -358,7 +358,7 @@ async function resolveRequires(
       if (pathStack.has(rubyFileMatch)) {
         const stackOutput = [...pathStack].join('->\n');
         outputChannel.append(
-          `Warning: circular dependency in erb require chain encountered: \n${stackOutput}`
+          `Warning: circular dependency in erb require chain encountered: \n${stackOutput}\n`
         );
         text = text.replace(requireOuter, ''); // Remove require statement
         continue; // End recursion, file is already on the stack
@@ -376,9 +376,58 @@ async function resolveRequires(
   return text;
 }
 
-const erbStubLib = `
-def 
-`;
+const rendersRegex = /<%=?\s*render\s+['"]([^'"]+)['"]\s*,\s*locals:\s*({.*?})\s*%>/g;
+
+async function resolveRenders(
+  outputChannel: vscode.OutputChannel,
+  filePath: string,
+  contents: string,
+  erbVariables: Map<string, string>
+): Promise<string> {
+  let text = contents;
+  const renderMatches = text.matchAll(rendersRegex);
+  if (!renderMatches) {
+    return text;
+  }
+
+  for (const match of renderMatches) {
+    const [fullMatch, fileName, localsObject] = match;
+    if (!fileName || !localsObject) {
+      continue;
+    }
+
+    const renderPath = path.join(path.dirname(filePath), fileName);
+    try {
+      await fs.access(renderPath);
+      const renderContents = await fs.readFile(renderPath, 'utf-8');
+
+      const expression = `(${localsObject})`;
+      const valuesObj = (0, eval)(expression) as object;
+
+      const chunkVariables = new Map<string, string>();
+      for (const [k, v] of Object.entries(valuesObj)) {
+        chunkVariables.set(k, v);
+      }
+      for (const [k, v] of erbVariables.entries()) {
+        chunkVariables.set(k, v);
+      }
+
+      const erbParsedContents = await parseERB(
+        outputChannel,
+        renderPath,
+        renderContents,
+        chunkVariables
+      );
+
+      text = text.replace(fullMatch, erbParsedContents);
+    } catch (err) {
+      outputChannel.appendLine(`Error: Could not process render file ${renderPath} ${err}`);
+      continue;
+    }
+  }
+
+  return text;
+}
 
 export async function parseERB(
   outputChannel: vscode.OutputChannel,
@@ -386,13 +435,21 @@ export async function parseERB(
   contents: string,
   variables: Map<string, string>
 ): Promise<string> {
-  let text = await resolveRequires(outputChannel, filePath, contents);
+  let erbRenderValues = {};
 
+  let text = await resolveRequires(outputChannel, filePath, contents);
+  text = await resolveRenders(outputChannel, filePath, text, variables);
   text = text.replace(/^\s*#.*$/gm, ''); /* Remove comments */
+
+  const allErbValues = {
+    ...Object.fromEntries(variables),
+    ...erbRenderValues,
+  };
+
   return await erb({
     template: text,
     data: {
-      values: Object.fromEntries(variables),
+      values: allErbValues,
     },
     timeout: 5000,
   });
