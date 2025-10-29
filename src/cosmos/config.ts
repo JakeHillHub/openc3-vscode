@@ -2,7 +2,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import erb from 'erb';
 
 export const TARGET_NAME_ERB_VAR = 'target_name';
@@ -55,7 +55,7 @@ export class CosmosPluginConfig {
     path: string,
     patternReplace: Map<string, string>
   ): Promise<string> {
-    let contents = await fs.promises.readFile(path, 'utf-8');
+    let contents = await fs.readFile(path, 'utf-8');
 
     for (const [re, value] of patternReplace) {
       contents = contents.replace(new RegExp(re, 'g'), value);

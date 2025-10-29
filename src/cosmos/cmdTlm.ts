@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 
 import {
   CosmosPluginConfig,
@@ -469,7 +469,7 @@ export class CmdFileParser {
     }
   }
 
-  private async parseTarget(lines: string[], resources: CmdTlmResources, targetName: string) {
+  private async parseTarget(lines: string[], targetName: string) {
     for (const line of lines) {
       this.lineNumber++;
       const sanitized = line.trim();
@@ -494,10 +494,9 @@ export class CmdFileParser {
     this.storeBufferedCmdDef(targetName);
   }
 
-  public async parse(resources: CmdTlmResources) {
-    const fileContents = fs.readFileSync(this.path, 'utf-8');
+  public async parse(fileLines: string[], resources: CmdTlmResources) {
     for (const targetName of resources.targets) {
-      await this.parseTarget(fileContents, resources, targetName);
+      await this.parseTarget(fileLines, targetName);
     }
   }
 }
@@ -802,28 +801,7 @@ export class TlmFileParser {
     }
   }
 
-  private async parseTarget(fileContents: string, resources: CmdTlmResources, targetName: string) {
-    const erbValues = new Map<string, string>();
-    erbValues.set(TARGET_NAME_ERB_VAR, targetName);
-    for (const [key, value] of resources.erb.variables) {
-      erbValues.set(key, value);
-    }
-    await resources.plugin.parse(resources.erb);
-    for (const [key, value] of resources.plugin.variables) {
-      erbValues.set(key, value);
-    }
-
-    let erbResult = undefined;
-    try {
-      erbResult = await parseERB(fileContents, erbValues);
-    } catch (err) {
-      this.outputChannel.appendLine(`erb error: ${err}`);
-      this.outputChannel.show(true);
-      throw err;
-    }
-
-    const lines = erbResult.split(/\r?\n/);
-
+  private async parseTarget(lines: string[], targetName: string) {
     for (const line of lines) {
       this.lineNumber++;
       const sanitized = line.trim();
@@ -848,10 +826,9 @@ export class TlmFileParser {
     this.storeBufferedTlmDef(targetName);
   }
 
-  public async parse(resources: CmdTlmResources) {
-    const fileContents = fs.readFileSync(this.path, 'utf-8');
+  public async parse(fileLines: string[], resources: CmdTlmResources) {
     for (const targetName of resources.targets) {
-      await this.parseTarget(fileContents, resources, targetName);
+      await this.parseTarget(fileLines, targetName);
     }
   }
 }
@@ -973,9 +950,7 @@ export class CosmosCmdTlmDB {
     return resources;
   }
 
-  public async compileCmdFile(cmdFilePath: string) {
-    const resources = await this.getCmdTlmFileResources(cmdFilePath);
-
+  public async compileCmdFile(cmdFilePath: string, resources: CmdTlmResources) {
     const parser = new CmdFileParser(cmdFilePath, this.outputChannel);
     await parser.parse(resources);
 
@@ -989,9 +964,7 @@ export class CosmosCmdTlmDB {
     }
   }
 
-  public async compileTlmFile(tlmFilePath: string) {
-    const resources = await this.getCmdTlmFileResources(tlmFilePath);
-
+  public async compileTlmFile(tlmFilePath: string, resources: CmdTlmResources) {
     const parser = new TlmFileParser(tlmFilePath, this.outputChannel);
     await parser.parse(resources);
 
@@ -1002,6 +975,38 @@ export class CosmosCmdTlmDB {
         targetTlm = this.tlmMap.get(packet.target);
       }
       targetTlm?.set(packet.id, packet);
+    }
+  }
+
+  public async compileCmdTlmFile(filePath: string) {
+    const resources = await this.getCmdTlmFileResources(filePath);
+
+    const fileContents = await fs.readFile(filePath);
+
+    for (const targetName of resources.targets) {
+      const erbValues = new Map<string, string>();
+      erbValues.set(TARGET_NAME_ERB_VAR, targetName);
+      for (const [key, value] of resources.erb.variables) {
+        erbValues.set(key, value);
+      }
+      await resources.plugin.parse(resources.erb);
+      for (const [key, value] of resources.plugin.variables) {
+        erbValues.set(key, value);
+      }
+
+      let erbResult = undefined;
+      try {
+        erbResult = await parseERB(fileContents, erbValues);
+      } catch (err) {
+        this.outputChannel.appendLine(`erb error: ${err}`);
+        this.outputChannel.show(true);
+        throw err;
+      }
+
+      const lines = erbResult.split(/\r?\n/);
+
+      await this.compileCmdFile(filePath, resources, targetName);
+      await this.compileTlmFile(filePath, resources, targetName);
     }
   }
 
@@ -1018,8 +1023,7 @@ export class CosmosCmdTlmDB {
     for (const fileUri of fileUris) {
       try {
         this.outputChannel.appendLine(`Compiling: ${fileUri.fsPath}`);
-        await this.compileCmdFile(fileUri.fsPath);
-        await this.compileTlmFile(fileUri.fsPath);
+        this.compileCmdTlmFile(fileUri.fsPath);
       } catch (error) {
         this.outputChannel.appendLine(`Error compiling ${fileUri.fsPath}: ${error}`);
       }

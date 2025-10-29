@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 
 export class RubyStubManager {
   private outputChannel: vscode.OutputChannel;
@@ -65,12 +65,12 @@ export class RubyStubManager {
     }
 
     const stubDir = path.join(workspaceFolder.uri.fsPath, '.vscode', 'rbstubs');
-    if (!fs.existsSync(stubDir)) {
-      await fs.promises.mkdir(stubDir, { recursive: true });
+    if (!fs.access(stubDir)) {
+      await fs.mkdir(stubDir, { recursive: true });
     }
 
     const stubSrc = path.resolve(__dirname, 'rbstubs');
-    await fs.promises.cp(stubSrc, stubDir, { recursive: true });
+    await fs.cp(stubSrc, stubDir, { recursive: true });
   }
 
   /**
