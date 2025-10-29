@@ -991,6 +991,7 @@ export class CosmosCmdTlmDB {
   }
 
   private async parseCmdTlmERB(
+    filePath: string,
     fileContents: string,
     resources: CmdTlmResources,
     targetName: string
@@ -1000,7 +1001,7 @@ export class CosmosCmdTlmDB {
     let erbResult = undefined;
 
     try {
-      erbResult = await parseERB(fileContents, resources.erbValues);
+      erbResult = await parseERB(this.outputChannel, filePath, fileContents, resources.erbValues);
       erbResult = erbResult.split(/\r?\n/);
     } catch (err) {
       this.outputChannel.appendLine(`erb error: ${err}`);
@@ -1019,7 +1020,7 @@ export class CosmosCmdTlmDB {
     const fileContents = await fs.readFile(filePath, 'utf-8');
 
     for (const targetName of resources.targets) {
-      const fileLines = await this.parseCmdTlmERB(fileContents, resources, targetName);
+      const fileLines = await this.parseCmdTlmERB(filePath, fileContents, resources, targetName);
 
       await this.compileCmdFile(filePath, fileLines, resources);
       await this.compileTlmFile(filePath, fileLines, resources);
