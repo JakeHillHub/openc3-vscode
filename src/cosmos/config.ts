@@ -102,13 +102,21 @@ export class CosmosPluginConfig {
   }
 }
 
-function searchPath(startDir: string, fileName: string): string | undefined {
+function workspaceRoots(): string[] | undefined {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
     return undefined;
   }
 
-  const workspacePaths = workspaceFolders.map((wf) => path.normalize(wf.uri.fsPath));
+  return workspaceFolders.map((wf) => path.normalize(wf.uri.fsPath));
+}
+
+function searchAscendingPath(startDir: string, fileName: string): string | undefined {
+  const workspacePaths = workspaceRoots();
+  if (workspacePaths === undefined) {
+    return undefined;
+  }
+
   let currentDir = path.normalize(startDir);
   let previousDir: string | undefined = undefined;
 
@@ -133,11 +141,55 @@ function searchPath(startDir: string, fileName: string): string | undefined {
   return undefined;
 }
 
-function searchRubyRequire(startDir: string, rubyRequireName: string): string | undefined {
+const RUBY_SEARCH_DIRS = ['', 'lib'];
+
+async function searchWorkspaceRubyFileName(
+  outputChannel: vscode.OutputChannel,
+  startDir: string,
+  fileName: string,
+  workspacePaths: string[]
+): Promise<string | undefined> {
+  let currentDir = path.normalize(startDir);
+
+  for (const subDir of RUBY_SEARCH_DIRS) {
+    const searchPath = path.join(currentDir, subDir, fileName);
+
+    try {
+      await fs.access(searchPath);
+      outputChannel.appendLine(`Found ruby require at ${searchPath}`);
+      return searchPath;
+    } catch {}
+  }
+
+  const parentDir = path.dirname(currentDir);
+  if (parentDir === currentDir || workspacePaths.includes(currentDir)) {
+    return undefined; // Stop the traversal. We've either hit '/' or the boundary.
+  }
+
+  return await searchWorkspaceRubyFileName(outputChannel, parentDir, fileName, workspacePaths);
+}
+
+async function searchRubyRequire(
+  outputChannel: vscode.OutputChannel,
+  startDir: string,
+  rubyRequireName: string
+): Promise<string | undefined> {
+  const workspacePaths = workspaceRoots();
+  if (workspacePaths === undefined) {
+    return undefined;
+  }
+
   if (!rubyRequireName.endsWith('.rb')) {
     rubyRequireName = `${rubyRequireName}.rb`;
   }
-  return searchPath(startDir, rubyRequireName);
+
+  outputChannel.appendLine(`searching ruby file name ${rubyRequireName}, ${workspacePaths}`);
+  return await searchWorkspaceRubyFileName(
+    outputChannel,
+    startDir,
+    rubyRequireName,
+    workspacePaths
+  );
 }
 
 export class CosmosProjectSearch {
@@ -184,7 +236,7 @@ export class CosmosProjectSearch {
   }
 
   public getPluginConfig(startDir: string): [CosmosPluginConfig, string] {
-    const configPath = searchPath(startDir, PLUGIN_CONFIG_NAME);
+    const configPath = searchAscendingPath(startDir, PLUGIN_CONFIG_NAME);
     if (!configPath) {
       return [new CosmosPluginConfig(undefined, this.outputChannel), ''];
     }
@@ -194,7 +246,7 @@ export class CosmosProjectSearch {
   }
 
   public async getERBConfig(startDir: string): Promise<CosmosERBConfig> {
-    const configPath = searchPath(startDir, ERB_CONFIG_NAME);
+    const configPath = searchAscendingPath(startDir, ERB_CONFIG_NAME);
     if (!configPath) {
       return {
         path: undefined,
@@ -262,15 +314,6 @@ const erbContentsRegex = /<%=?\s*([\s\S]*?)\s*%>/g;
 const requireRegex = /(require(?:\(|\s)['"][^'"]+['"](?:\)|\s)?)/g;
 const requireFileRegex = /['"]([^'"]+)['"]/;
 
-function simpleHash(str: string): number {
-  let hash = 5381;
-  let i = str.length;
-  while (i) {
-    hash = (hash * 33) ^ str.charCodeAt(--i);
-  }
-  return hash >>> 0;
-}
-
 async function resolveRequires(
   outputChannel: vscode.OutputChannel,
   filePath: string,
@@ -308,7 +351,7 @@ async function resolveRequires(
       }
 
       const startDir = path.dirname(filePath);
-      const rubyFileMatch = searchRubyRequire(startDir, rubyRequireName);
+      const rubyFileMatch = await searchRubyRequire(outputChannel, startDir, rubyRequireName);
       if (rubyFileMatch === undefined) {
         continue;
       }
@@ -333,6 +376,10 @@ async function resolveRequires(
 
   return text;
 }
+
+const erbStubLib = `
+def 
+`;
 
 export async function parseERB(
   outputChannel: vscode.OutputChannel,
