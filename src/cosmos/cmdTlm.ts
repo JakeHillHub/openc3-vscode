@@ -862,6 +862,7 @@ export class CosmosCmdTlmDB {
   private tlmMap: Map<string, Map<string, TlmDefinition>>;
   private resourceCache: Map<string, CmdTlmResources>;
   private outputChannel: vscode.OutputChannel;
+  private compilingWorkspace: boolean = false;
 
   public constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
@@ -1026,10 +1027,16 @@ export class CosmosCmdTlmDB {
   }
 
   public async compileWorkspace(excludePattern: string) {
+    if (this.compilingWorkspace) {
+      return;
+    }
+
+    this.compilingWorkspace = true;
     this.clearResourceCache();
 
     this.outputChannel.appendLine('Scanning workspace for cmd/tlm definitions');
     await this.compileCmdTlm(excludePattern);
     this.outputChannel.appendLine('Compiling workspace complete');
+    this.compilingWorkspace = false;
   }
 }
