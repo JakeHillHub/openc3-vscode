@@ -143,6 +143,9 @@ This extension automatically generates pylance configuration settings in .vscode
 
 For ruby you will need some extension that supports .rbs type signatures (Extension has only been tested with soutaro.steep-vscode + shopify.ruby-lsp)
 
+- "shopify.ruby-lsp"
+- "soutaro.steep-vscode"
+
 ## Extension Settings
 
 This extension contributes the following settings:
@@ -156,6 +159,8 @@ This extension contributes the following settings:
 
 There are probably tons, you are welcome to open issues [here](https://github.com/JakeHillHub/openc3-vscode/issues)
 
+- Dollar signs in cmd/tlm files sometimes cause erb parse to fail, fix coming eventually
+
 ## Release Notes
 
 ### 0.0.1
@@ -168,7 +173,7 @@ Resolve quirky behavior in scripting autocompletions
 
 ### 0.2.0
 
-- Improve parsing efficiency to manage larger projects
+- Improve parsing efficiency to manage much larger projects
 - Implement erb `require` which can include ruby files from project and utilize them during erb compilation
 
 ```ruby

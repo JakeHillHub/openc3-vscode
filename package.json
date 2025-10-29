@@ -32,9 +32,7 @@
   ],
   "main": "./dist/extension.js",
   "extensionDependencies": [
-    "ms-python.vscode-pylance",
-    "shopify.ruby-lsp",
-    "soutaro.steep-vscode"
+    "ms-python.vscode-pylance"
   ],
   "contributes": {
     "languages": [
