@@ -1016,6 +1016,12 @@ export class CosmosCmdTlmDB {
   }
 
   public async compileCmdTlmFile(filePath: string) {
+    const fileName = path.basename(filePath);
+    if (fileName.startsWith('_')) {
+      this.outputChannel.appendLine(`skipping cmd/tlm file ${fileName}`);
+      return;
+    }
+
     const resources = await this.getCmdTlmFileResources(filePath);
     const fileContents = await fs.readFile(filePath, 'utf-8');
 
