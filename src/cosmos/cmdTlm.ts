@@ -1010,7 +1010,9 @@ export class CosmosCmdTlmDB {
     }
 
     if (erbResult === undefined) {
-      throw new Error('erb result undefined - this is impossible'); /* Should not be possible */
+      throw new Error(
+        'erb result undefined - this is impossible'
+      ); /* Is not possible - here so that typescript is still stoked on this function */
     }
     return erbResult;
   }
@@ -1038,7 +1040,7 @@ export class CosmosCmdTlmDB {
     const fileUris = await vscode.workspace.findFiles('**/cmd_tlm/*.txt', excludePattern);
 
     if (fileUris.length === 0) {
-      this.outputChannel.appendLine('No .cmd.txt files found in the workspace.');
+      this.outputChannel.appendLine('No cmd/tlm.txt files found in the workspace.');
       return;
     }
 

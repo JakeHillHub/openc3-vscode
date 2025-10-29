@@ -1723,5 +1723,10 @@ const staticDefinitions: common.CompletionDefinition[] = [
 export function createPluginCompletions(
   outputChannel: vscode.OutputChannel
 ): CosmosConfigurationCompletion {
-  return new CosmosConfigurationCompletion(outputChannel, staticDefinitions, contextualDefinitions);
+  return new CosmosConfigurationCompletion(
+    outputChannel,
+    staticDefinitions,
+    contextualDefinitions,
+    'plugin.txt completion provider'
+  );
 }

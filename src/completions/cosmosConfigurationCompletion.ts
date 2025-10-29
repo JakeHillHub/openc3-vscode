@@ -16,7 +16,8 @@ export class CosmosConfigurationCompletion implements vscode.CompletionItemProvi
   constructor(
     outputChannel: vscode.OutputChannel,
     completionDefinitions: common.CompletionDefinition[],
-    contextualDefinitions: common.ContextualDefinition[]
+    contextualDefinitions: common.ContextualDefinition[],
+    name: string
   ) {
     this.outputChannel = outputChannel;
     this.completionDefinitions = completionDefinitions;
@@ -29,7 +30,7 @@ export class CosmosConfigurationCompletion implements vscode.CompletionItemProvi
       sumContextualCompletions += definition.choices.length;
     }
     this.outputChannel.appendLine(
-      `Created ${this.topLevelCompletions.length} static completions and ${sumContextualCompletions} context aware completions`
+      `${name} created ${this.topLevelCompletions.length} static completions and ${sumContextualCompletions} context aware completions`
     );
   }
 

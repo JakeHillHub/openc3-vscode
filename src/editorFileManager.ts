@@ -225,7 +225,7 @@ export class EditorFileManager {
 
         const fileName = path.basename(uri.fsPath);
         if (fileName === 'openc3-erb.json') {
-          this.outputChannel.appendLine(`Recompiling workspace`);
+          this.outputChannel.appendLine(`Recompiling workspace after openc3-erb.json change`);
           await cmdTlmDB.compileWorkspace(this.ignoredPattern);
         }
       }, debounceInterval)

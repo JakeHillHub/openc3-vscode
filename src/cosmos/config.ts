@@ -183,7 +183,6 @@ async function searchRubyRequire(
     rubyRequireName = `${rubyRequireName}.rb`;
   }
 
-  outputChannel.appendLine(`searching ruby file name ${rubyRequireName}, ${workspacePaths}`);
   return await searchWorkspaceRubyFileName(
     outputChannel,
     startDir,
@@ -357,7 +356,10 @@ async function resolveRequires(
       }
 
       if (pathStack.has(rubyFileMatch)) {
-        outputChannel.appendLine('Require recursion terminated on same include');
+        const stackOutput = [...pathStack].join('->\n');
+        outputChannel.append(
+          `Warning: circular dependency in erb require chain encountered: \n${stackOutput}`
+        );
         text = text.replace(requireOuter, ''); // Remove require statement
         continue; // End recursion, file is already on the stack
       }
@@ -370,9 +372,6 @@ async function resolveRequires(
       text = await resolveRequires(outputChannel, filePath, updated, pathStack);
     }
   }
-
-  outputChannel.append(text);
-  outputChannel.show(true);
 
   return text;
 }
