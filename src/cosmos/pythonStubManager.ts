@@ -16,15 +16,6 @@ export class PythonStubManager {
     this.builtinStubManager = new PyBuiltinStubManager(outputChannel);
   }
 
-  public getPyStubsIgnore(): string | undefined {
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
-      return undefined;
-    }
-    const stubPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'pystubs');
-    return vscode.workspace.asRelativePath(stubPath);
-  }
-
   public async probeLoadUtility(doc: vscode.TextDocument) {
     const contents = doc.getText();
     const loadUtilRegex = /load_utility\(["'](.*?)["']\)/g;
@@ -93,9 +84,9 @@ export class PythonStubManager {
   /**
    * Run initialization steps to configure workspace properly
    */
-  public async initializeStubs(ignoredDirsPattern: string) {
-    await this.copyCosmosAPIStubs();
-    await this.configureAPIStubs();
+  public async initializeStubs(ignoredDirsPattern: string, context: vscode.ExtensionContext) {
+    await this.copyCosmosAPIStubs(context);
+    await this.configureAPIStubs(context);
     await this.configureDiagnosticSeverity();
     await this.addAllExistingPluginStubs(ignoredDirsPattern);
 
@@ -109,54 +100,45 @@ export class PythonStubManager {
     }, 10000); /* Hopefully pull in activatation without requiring active switch - not extra important, but makes the initial load "cleaner" */
   }
 
-  /**
-   * Only run once during initialization to refresh/copy builtin stubs for api functions
-   */
-  private async copyCosmosAPIStubs() {
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
-      return;
+  private getStubsPath(context: vscode.ExtensionContext): string | undefined {
+    const storageFolder = context.storageUri?.fsPath;
+    this.outputChannel.appendLine(`Local storage folder ${storageFolder}`);
+
+    if (storageFolder === undefined) {
+      return undefined;
     }
 
-    const stubDir = path.join(workspaceFolder.uri.fsPath, '.vscode', 'pystubs');
-    if (!fs.access(stubDir)) {
-      await fs.mkdir(stubDir, { recursive: true });
-    }
-
-    const stubSrc = path.resolve(__dirname, 'pystubs');
-    await fs.cp(stubSrc, stubDir, { recursive: true });
+    return path.join(storageFolder, 'pystubs');
   }
 
   /**
-   * Add hide .pyi to workspace configuration
+   * Only run once during initialization to refresh/copy builtin stubs for api functions
    */
-  public async configureHiddenStubs() {
-    const config = vscode.workspace.getConfiguration();
-    const hidden = config.get('openc3.autoEditorHide', true);
-    const filesExcluded = config.get('files.exclude', {}) as any;
-
-    const hiddenPatterns = ['**/pystubs'];
-    if (hidden) {
-      for (const pattern of hiddenPatterns) {
-        filesExcluded[pattern] = true;
-      }
-      await config.update('files.exclude', filesExcluded);
-    } else {
-      for (const pattern of hiddenPatterns) {
-        filesExcluded[pattern] = undefined;
-      }
-      await config.update('files.exclude', filesExcluded);
+  private async copyCosmosAPIStubs(context: vscode.ExtensionContext) {
+    const stubDir = this.getStubsPath(context);
+    if (stubDir === undefined) {
+      this.outputChannel.appendLine(`No local storage path, cannot load python/ruby stubs`);
+      return;
     }
+
+    const stubSrc = path.resolve(__dirname, 'pystubs');
+
+    await fs.mkdir(stubDir, { recursive: true });
+    await fs.cp(stubSrc, stubDir, { recursive: true });
   }
 
   /**
    * Add API stubs to python analysis configuration
    */
-  private async configureAPIStubs() {
+  private async configureAPIStubs(context: vscode.ExtensionContext) {
     const config = vscode.workspace.getConfiguration();
     const settingPath = 'python.analysis.stubPath';
 
-    await config.update(settingPath, './.vscode/pystubs', vscode.ConfigurationTarget.Workspace);
+    const stubDir = this.getStubsPath(context);
+    if (stubDir === undefined) {
+      this.outputChannel.appendLine(`No local storage path, cannot configure pylance stub path`);
+    }
+    await config.update(settingPath, stubDir, vscode.ConfigurationTarget.Workspace);
   }
 
   /**

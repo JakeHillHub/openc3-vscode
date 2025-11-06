@@ -9,13 +9,15 @@ export class RubyStubManager {
     this.outputChannel = outputChannel;
   }
 
-  public getRbStubsIgnore(): string | undefined {
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
+  private getStubsPath(context: vscode.ExtensionContext): string | undefined {
+    const storageFolder = context.storageUri?.fsPath;
+    this.outputChannel.appendLine(`Local storage folder ${storageFolder}`);
+
+    if (storageFolder === undefined) {
       return undefined;
     }
-    const stubPath = path.join(workspaceFolder.uri.fsPath, '.vscode', 'rbstubs');
-    return vscode.workspace.asRelativePath(stubPath);
+
+    return path.join(storageFolder, 'pystubs');
   }
 
   public async probeLoadUtility(doc: vscode.TextDocument) {
@@ -40,9 +42,9 @@ export class RubyStubManager {
   /**
    * Run initialization steps to configure workspace properly
    */
-  public async initializeStubs(ignoredDirsPattern: string) {
-    await this.copyCosmosAPIStubs();
-    await this.configureAPIStubs();
+  public async initializeStubs(ignoredDirsPattern: string, context: vscode.ExtensionContext) {
+    await this.copyCosmosAPIStubs(context);
+    await this.configureAPIStubs(context);
     await this.addAllExistingPluginStubs(ignoredDirsPattern);
 
     setTimeout(() => {
@@ -58,15 +60,11 @@ export class RubyStubManager {
   /**
    * Only run once during initialization to refresh/copy builtin stubs for api functions
    */
-  private async copyCosmosAPIStubs() {
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
+  private async copyCosmosAPIStubs(context: vscode.ExtensionContext) {
+    const stubDir = this.getStubsPath(context);
+    if (stubDir === undefined) {
+      this.outputChannel.appendLine(`No local stub dir, cannot copy ruby stubs`);
       return;
-    }
-
-    const stubDir = path.join(workspaceFolder.uri.fsPath, '.vscode', 'rbstubs');
-    if (!fs.access(stubDir)) {
-      await fs.mkdir(stubDir, { recursive: true });
     }
 
     const stubSrc = path.resolve(__dirname, 'rbstubs');
@@ -74,31 +72,9 @@ export class RubyStubManager {
   }
 
   /**
-   * Add hide .pyi to workspace configuration
-   */
-  public async configureHiddenStubs() {
-    const config = vscode.workspace.getConfiguration();
-    const hidden = config.get('openc3.autoEditorHide', true);
-    const filesExcluded = config.get('files.exclude', {}) as any;
-
-    const hiddenPatterns = ['**/rbstubs'];
-    if (hidden) {
-      for (const pattern of hiddenPatterns) {
-        filesExcluded[pattern] = true;
-      }
-      await config.update('files.exclude', filesExcluded);
-    } else {
-      for (const pattern of hiddenPatterns) {
-        filesExcluded[pattern] = undefined;
-      }
-      await config.update('files.exclude', filesExcluded);
-    }
-  }
-
-  /**
    * Add API stubs to ruby steep configuration
    */
-  private async configureAPIStubs() {
+  private async configureAPIStubs(context: vscode.ExtensionContext) {
     // const config = vscode.workspace.getConfiguration();
     // const settingPath = 'python.analysis.stubPath';
     // await config.update(settingPath, './.vscode/pystubs', vscode.ConfigurationTarget.Workspace);
