@@ -8,7 +8,7 @@ export class PyBuiltinStubManager extends FileManagedSection {
 
   private enabled: boolean = true;
 
-  constructor(outputChannel: vscode.OutputChannel) {
+  constructor(outputChannel: vscode.OutputChannel, context: vscode.ExtensionContext) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
       super(
@@ -21,18 +21,19 @@ export class PyBuiltinStubManager extends FileManagedSection {
       return;
     }
 
-    const builtinsPath = path.join(
-      workspaceFolder.uri.fsPath,
-      '.vscode',
-      'pystubs',
-      '__builtins__.pyi'
-    );
-    super(
-      builtinsPath,
-      PyBuiltinStubManager.managedMarkerStart,
-      PyBuiltinStubManager.managedMarkerEnd,
-      outputChannel
-    );
+    const storageFolder = context.storageUri?.fsPath;
+    outputChannel.appendLine(`Local storage folder ${storageFolder}`);
+
+    if (storageFolder !== undefined) {
+      const builtinsPath = path.join(storageFolder, 'pystubs', '__builtins__.pyi');
+      super(
+        builtinsPath,
+        PyBuiltinStubManager.managedMarkerStart,
+        PyBuiltinStubManager.managedMarkerEnd,
+        outputChannel
+      );
+      this.enabled = true;
+    }
   }
 
   public async setStubIncludes(includes: string[]) {

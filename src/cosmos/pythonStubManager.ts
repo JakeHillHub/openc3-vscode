@@ -10,10 +10,10 @@ export class PythonStubManager {
   private outputChannel: vscode.OutputChannel;
   private builtinStubManager: PyBuiltinStubManager;
 
-  constructor(outputChannel: vscode.OutputChannel) {
+  constructor(outputChannel: vscode.OutputChannel, context: vscode.ExtensionContext) {
     this.outputChannel = outputChannel;
 
-    this.builtinStubManager = new PyBuiltinStubManager(outputChannel);
+    this.builtinStubManager = new PyBuiltinStubManager(outputChannel, context);
   }
 
   public async probeLoadUtility(doc: vscode.TextDocument) {
@@ -147,9 +147,13 @@ export class PythonStubManager {
   private async configureDiagnosticSeverity() {
     const config = vscode.workspace.getConfiguration();
     const ignoreMissingSourcePath = 'python.analysis.diagnosticSeverityOverrides';
-    await config.update(ignoreMissingSourcePath, {
-      reportMissingModuleSource: 'none',
-    });
+    await config.update(
+      ignoreMissingSourcePath,
+      {
+        reportMissingModuleSource: 'none',
+      },
+      vscode.ConfigurationTarget.Workspace
+    );
   }
 
   /**

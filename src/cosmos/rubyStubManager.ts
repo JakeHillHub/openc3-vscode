@@ -77,7 +77,11 @@ export class RubyStubManager {
   private async configureAPIStubs(context: vscode.ExtensionContext) {
     // const config = vscode.workspace.getConfiguration();
     // const settingPath = 'python.analysis.stubPath';
-    // await config.update(settingPath, './.vscode/pystubs', vscode.ConfigurationTarget.Workspace);
+    // await config.update(
+    //   settingPath,
+    //   './.vscode/pystubs',
+    //   vscode.ConfigurationTarget.Workspace
+    // );
   }
 
   /**

@@ -58,7 +58,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const editorFileManager = new EditorFileManager(outputChannel);
 
   const cmdTlmDB = new CosmosCmdTlmDB(outputChannel);
-  const pythonStubManager = new PythonStubManager(outputChannel);
+  const pythonStubManager = new PythonStubManager(outputChannel, context);
   const rubyStubManager = new RubyStubManager(outputChannel);
 
   const pyComplete = createPyScriptCompletions(outputChannel, cmdTlmDB);
@@ -119,9 +119,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
   await reinitializeExtension();
 
-  const vscodeSettingsWatcher =
-    editorFileManager.createVscodeSettingsWatcher(reinitializeExtension);
-  subscribe(vscodeSettingsWatcher);
+  subscribe(
+    vscode.commands.registerCommand('openc3.recompileWorkspace', async () => {
+      await reinitializeExtension();
+    })
+  );
 }
 
 export function deactivate() {

@@ -254,12 +254,4 @@ export class EditorFileManager {
 
     return [cosmosCmdTlmWatcher, erbContentProvider, erbConfigWatcher, cosmosConfigWatcher];
   }
-
-  public createVscodeSettingsWatcher(
-    reinitializeExtension: () => Promise<void>
-  ): vscode.Disposable {
-    return vscode.workspace.onDidChangeConfiguration(async () => {
-      await reinitializeExtension();
-    });
-  }
 }

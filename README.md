@@ -151,8 +151,6 @@ For ruby you will need some extension that supports .rbs type signatures (Extens
 This extension contributes the following settings:
 
 - `openc3.ignoreDirectories`: list of directory names to ignore for context generation
-- `openc3.autoGitignore`: Set to false to prevent .gitignore updates for scripting stubs
-- `openc3.autoEditorHide`: Set to false to prevent editor from hiding generated .pyi stub files
 - `openc3.preferredStyle`: Set to "inline" for cmd("TARG MNEMONIC ...") or "positional" for cmd("TARG", "MNEMONIC"). Both styles are still possible at all times, this manages where your cursor gets placed during completions
 
 ## Known Issues
@@ -192,3 +190,9 @@ TELEMETRY INST HEALTH_STATUS BIG_ENDIAN "Health and status"
   <%= render "_ccsds_apid.txt", locals: {apid: 1} %>  # <- this works now
   APPEND_ITEM COLLECTS     16 UINT   "Number of collects"
 ```
+
+### 0.2.1
+
+- Fix issue that would delete the entire .gitignore contents from a workspace (OOPS)
+- Stubs are now managed in the proper workspace storage directory instead of in .vscode
+- Resolve initialization condition that caused many compilation tasks to spawn concurrently

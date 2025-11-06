@@ -92,6 +92,10 @@
         "command": "openc3.showERB",
         "title": "openc3: Compile ERB evaluate and show results",
         "icon": "$(eye)"
+      },
+      {
+        "command": "openc3.recompileWorkspace",
+        "title": "openc3: Recompile workspace definitions"
       }
     ],
     "menus": {
