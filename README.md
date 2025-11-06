@@ -4,6 +4,13 @@ NOTE: This is not an official OpenC3 extension and is not maintained by the Open
 
 This extension aims to assist in the local development of openc3/cosmos plugins/scripts.
 
+## Extension Settings
+
+This extension contributes the following settings:
+
+- `openc3.ignoreDirectories`: list of directory names to ignore for context generation
+- `openc3.preferredStyle`: Set to "inline" for cmd("TARG MNEMONIC ...") or "positional" for cmd("TARG", "MNEMONIC"). Both styles are still possible at all times, this manages where your cursor gets placed during completions
+
 ## Features
 
 ### Works with many plugin directories in a single workspace/folder
@@ -145,13 +152,6 @@ For ruby you will need some extension that supports .rbs type signatures (Extens
 
 - "shopify.ruby-lsp"
 - "soutaro.steep-vscode"
-
-## Extension Settings
-
-This extension contributes the following settings:
-
-- `openc3.ignoreDirectories`: list of directory names to ignore for context generation
-- `openc3.preferredStyle`: Set to "inline" for cmd("TARG MNEMONIC ...") or "positional" for cmd("TARG", "MNEMONIC"). Both styles are still possible at all times, this manages where your cursor gets placed during completions
 
 ## Known Issues
 
