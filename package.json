@@ -114,16 +114,6 @@
             "type": "string"
           }
         },
-        "openc3.autoGitignore": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically add generated .pyi stub files to gitignore"
-        },
-        "openc3.autoEditorHide": {
-          "type": "boolean",
-          "default": true,
-          "description": "Configure vscode to automatically hide generated .pyi stub files"
-        },
         "openc3.preferredStyle": {
           "type": "string",
           "default": "inline",
