@@ -2,7 +2,7 @@
   "name": "openc3",
   "displayName": "OpenC3 Extension",
   "description": "openc3 local development support, cmd/tlm, scripting, etc.",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "JakeHill",
   "license": "SEE LICENSE",
   "engines": {
