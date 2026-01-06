@@ -1,4 +1,4 @@
-# openc3 vscode - BETA
+# openc3 vscode
 
 NOTE: This is not an official OpenC3 extension and is not maintained by the OpenC3 team. For bugs/feedback, use this [Issue Tracker](https://github.com/JakeHillHub/openc3-vscode/issues)
 

@@ -1,6 +1,6 @@
 {
   "name": "openc3",
-  "displayName": "OpenC3 Extension (BETA)",
+  "displayName": "OpenC3 Extension",
   "description": "openc3 local development support, cmd/tlm, scripting, etc.",
   "version": "0.4.1",
   "publisher": "JakeHill",
