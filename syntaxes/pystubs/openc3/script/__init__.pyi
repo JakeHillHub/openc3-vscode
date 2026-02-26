@@ -16,6 +16,7 @@ from .exceptions import *
 from .metadata import *
 from .packages import *
 from .plugins import *
+from .queue import *
 from .screen import *
 from .script_runner import *
 from .storage import *
@@ -417,6 +418,48 @@ def interface_protocol_cmd(
 ) -> None:
     """
     Send a command directly to an interface protocol.
+    """
+    ...
+
+def unmap_target_from_interface(target_name: str, interface_name: str) -> None:
+    """
+    Removes the mapping of a target from an interface.
+
+    Args:
+        target_name (str): The name of the target.
+        interface_name (str): The name of the interface.
+    """
+    ...
+
+def interface_target_enable(interface_name: str, target_name: str) -> None:
+    """
+    Enables a target on an interface.
+
+    Args:
+        interface_name (str): The name of the interface.
+        target_name (str): The name of the target.
+    """
+    ...
+
+def interface_target_disable(interface_name: str, target_name: str) -> None:
+    """
+    Disables a target on an interface.
+
+    Args:
+        interface_name (str): The name of the interface.
+        target_name (str): The name of the target.
+    """
+    ...
+
+def interface_details(interface_name: str) -> Dict[str, Any]:
+    """
+    Returns detailed configuration information for an interface.
+
+    Args:
+        interface_name (str): The name of the interface.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the interface's detailed configuration.
     """
     ...
 

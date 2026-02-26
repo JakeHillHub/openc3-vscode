@@ -93,3 +93,12 @@ def local_screen(
         y_position (Optional[int]): Y coordinate for the upper-left corner of the screen.
     """
     ...
+
+def open_tab(url: str) -> None:
+    """
+    Opens a new browser tab to the specified URL from Script Runner.
+
+    Args:
+        url (str): The URL to open.
+    """
+    ...

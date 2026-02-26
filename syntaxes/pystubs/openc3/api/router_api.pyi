@@ -97,3 +97,64 @@ def router_protocol_cmd(
         index (int, optional): The protocol index in the stack. Defaults to -1 (all).
     """
     ...
+
+def map_target_to_router(
+    target_name: str,
+    router_name: str,
+    cmd_only: bool = False,
+    tlm_only: bool = False,
+    unmap_old: bool = True,
+) -> None:
+    """
+    Maps a target to a router.
+
+    Args:
+        target_name (str): The name of the target.
+        router_name (str): The name of the router.
+        cmd_only (bool): If True, only map target commands. Defaults to False.
+        tlm_only (bool): If True, only map target telemetry. Defaults to False.
+        unmap_old (bool): If True, remove target from existing routers first. Defaults to True.
+    """
+    ...
+
+def unmap_target_from_router(target_name: str, router_name: str) -> None:
+    """
+    Removes the mapping of a target from a router.
+
+    Args:
+        target_name (str): The name of the target.
+        router_name (str): The name of the router.
+    """
+    ...
+
+def router_target_enable(router_name: str, target_name: str) -> None:
+    """
+    Enables a target on a router.
+
+    Args:
+        router_name (str): The name of the router.
+        target_name (str): The name of the target.
+    """
+    ...
+
+def router_target_disable(router_name: str, target_name: str) -> None:
+    """
+    Disables a target on a router.
+
+    Args:
+        router_name (str): The name of the router.
+        target_name (str): The name of the target.
+    """
+    ...
+
+def router_details(router_name: str) -> Dict[str, Any]:
+    """
+    Returns detailed configuration information for a router.
+
+    Args:
+        router_name (str): The name of the router.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing the router's detailed configuration.
+    """
+    ...

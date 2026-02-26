@@ -239,3 +239,27 @@ def completed_script_list(limit: int = 10, offset: int = 0) -> List[Dict[str, An
         List[Dict[str, Any]]: A list of dictionaries, each representing a completed script.
     """
     ...
+
+def pause() -> None:
+    """
+    Pauses the currently running script.
+    """
+    ...
+
+def retry() -> None:
+    """
+    Retries the current line of the currently running script.
+    """
+    ...
+
+def step() -> None:
+    """
+    Steps forward one line in the currently running script.
+    """
+    ...
+
+def go() -> None:
+    """
+    Resumes execution of the currently running script after a pause.
+    """
+    ...
