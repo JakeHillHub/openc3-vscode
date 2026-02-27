@@ -6,6 +6,9 @@ import { PythonStubManager } from './cosmos/pythonStubManager';
 
 import { CosmosConfigurationCompletion } from './completions/cosmosConfigurationCompletion';
 
+import { ConfigHoverProvider } from './hovers/configHoverProvider';
+import { cmdTlmKeywordDocs, pluginKeywordDocs, targetKeywordDocs } from './hovers/configKeywordDocs';
+
 import { createCmdTlmCompletions } from './completions/cosmosCmdTlmCompletion';
 import { createTargetCompletions } from './completions/cosmosTargetCompletion';
 import { createPluginCompletions } from './completions/cosmosPluginCompletion';
@@ -30,6 +33,14 @@ function createCompletionProvider(
     ...completions.getTriggerChars()
   );
   return provider;
+}
+
+function createHoverProviders(): vscode.Disposable[] {
+  return [
+    vscode.languages.registerHoverProvider('openc3-cmdtlm', new ConfigHoverProvider(cmdTlmKeywordDocs)),
+    vscode.languages.registerHoverProvider('openc3-target', new ConfigHoverProvider(targetKeywordDocs)),
+    vscode.languages.registerHoverProvider('openc3-plugin', new ConfigHoverProvider(pluginKeywordDocs)),
+  ];
 }
 
 function createCosmosCompletionProviders(outputChannel: vscode.OutputChannel): vscode.Disposable[] {
@@ -88,6 +99,7 @@ export async function activate(context: vscode.ExtensionContext) {
     ...editorFileWatchers,
     ...pythonStubManager.createSubscriptions(),
     ...rubyStubManager.createSubscriptions(),
+    ...createHoverProviders(),
     ...createCosmosCompletionProviders(outputChannel)
   );
 

@@ -1,3 +1,4 @@
+from contextlib import AbstractContextManager
 from typing import Optional, Any, Dict, overload, Iterator
 
 # --- Handling Telemetry ---
@@ -380,7 +381,7 @@ def get_max_output() -> int:
     """
     ...
 
-def disable_instrumentation() -> Iterator[None]:
+def disable_instrumentation() -> AbstractContextManager[None]:
     """
     Disables instrumentation (line highlighting and exception catching) for a block of code.
     Use with a 'with' statement.
@@ -391,4 +392,4 @@ def disable_instrumentation() -> Iterator[None]:
                 # This loop will not be instrumented
                 pass
     """
-    yield
+    ...
