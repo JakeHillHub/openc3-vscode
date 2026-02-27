@@ -376,53 +376,52 @@ async function resolveRequires(
   return text;
 }
 
-const rendersRegex = /<%=?\s*render\s+['"]([^'"]+)['"]\s*,\s*locals:\s*({.*?})\s*%>/g;
+const RENDER_PLACEHOLDER_PREFIX = '__OPENC3_RENDER__';
+const RENDER_PLACEHOLDER_SUFFIX = '__END_RENDER__';
 
-async function resolveRenders(
+const RUBY_RENDER_STUB = [
+  `def render(filename, locals: {})`,
+  `  result = "${RENDER_PLACEHOLDER_PREFIX}"`,
+  `  result += filename`,
+  `  result += "|"`,
+  `  result += JSON.generate(locals)`,
+  `  result += "${RENDER_PLACEHOLDER_SUFFIX}"`,
+  `  result`,
+  `end`,
+].join('\n');
+
+const renderPlaceholderRegex = /__OPENC3_RENDER__(.*?)\|(.*?)__END_RENDER__/;
+
+async function resolveRenderPlaceholders(
   outputChannel: vscode.OutputChannel,
   filePath: string,
   contents: string,
   erbVariables: Map<string, string>
 ): Promise<string> {
   let text = contents;
-  const renderMatches = text.matchAll(rendersRegex);
-  if (!renderMatches) {
-    return text;
-  }
+  let match;
 
-  for (const match of renderMatches) {
-    const [fullMatch, fileName, localsObject] = match;
-    if (!fileName || !localsObject) {
-      continue;
-    }
-
+  while ((match = renderPlaceholderRegex.exec(text)) !== null) {
+    const [fullMatch, fileName, localsJson] = match;
     const renderPath = path.join(path.dirname(filePath), fileName);
-    try {
-      await fs.access(renderPath);
-      const renderContents = await fs.readFile(renderPath, 'utf-8');
 
-      const expression = `(${localsObject})`;
-      const valuesObj = (0, eval)(expression) as object;
+    try {
+      const renderContents = await fs.readFile(renderPath, 'utf-8');
+      const locals = JSON.parse(localsJson);
 
       const chunkVariables = new Map<string, string>();
-      for (const [k, v] of Object.entries(valuesObj)) {
-        chunkVariables.set(k, v);
+      for (const [k, v] of Object.entries(locals)) {
+        chunkVariables.set(k, String(v));
       }
       for (const [k, v] of erbVariables.entries()) {
         chunkVariables.set(k, v);
       }
 
-      const erbParsedContents = await parseERB(
-        outputChannel,
-        renderPath,
-        renderContents,
-        chunkVariables
-      );
-
-      text = text.replace(fullMatch, erbParsedContents);
+      const expanded = await parseERB(outputChannel, renderPath, renderContents, chunkVariables);
+      text = text.replace(fullMatch, expanded);
     } catch (err) {
-      outputChannel.appendLine(`Error: Could not process render file ${renderPath} ${err}`);
-      continue;
+      outputChannel.appendLine(`Error: Could not process render partial ${renderPath}: ${err}`);
+      text = text.replace(fullMatch, '');
     }
   }
 
@@ -435,22 +434,24 @@ export async function parseERB(
   contents: string,
   variables: Map<string, string>
 ): Promise<string> {
-  let erbRenderValues = {};
-
   let text = await resolveRequires(outputChannel, filePath, contents);
-  text = await resolveRenders(outputChannel, filePath, text, variables);
   text = text.replace(/^\s*#.*$/gm, ''); /* Remove comments */
 
-  const allErbValues = {
-    ...Object.fromEntries(variables),
-    ...erbRenderValues,
-  };
+  // Prepend Ruby render stub so ERB can handle render calls
+  text = `<% ${RUBY_RENDER_STUB} %>\n` + text;
 
-  return await erb({
+  const allErbValues = Object.fromEntries(variables);
+
+  let result = await erb({
     template: text,
     data: {
       values: allErbValues,
     },
     timeout: 5000,
   });
+
+  // Resolve render placeholders that ERB emitted
+  result = await resolveRenderPlaceholders(outputChannel, filePath, result, variables);
+
+  return result;
 }
